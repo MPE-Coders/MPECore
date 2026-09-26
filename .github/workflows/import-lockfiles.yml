@@ -22,7 +22,7 @@ jobs:
           echo "ec9bef6abcdba74026a3ee67444df20b7916e3016724b2063cebe61753d5d826  $RUNNER_TEMP/dependencies.zip" | sha256sum -c -
           python3 - <<'PY'
           from pathlib import Path
-          import hashlib,json,os,zipfile
+          import hashlib,json,os,zipfile,urllib.request
           with zipfile.ZipFile(Path(os.environ['RUNNER_TEMP'])/'dependencies.zip') as z:
               composer=z.read('build/composer.lock')
               data=json.loads(z.read('build/package-lock.json'))
@@ -30,7 +30,8 @@ jobs:
           data['version']='0.5.0';data['packages']['']['version']='0.5.0'
           node=(json.dumps(data,indent=2)+'\n').encode()
           assert hashlib.sha256(node).hexdigest()=='05e884adb9b388aa367afc0876f2de6be2830903f48b666d98c049aff10000db'
-          license=Path('/usr/share/common-licenses/GPL-3').read_bytes()
+          with urllib.request.urlopen('https://raw.githubusercontent.com/Pumpkin-MC/Pumpkin/003d3c49eaf1ca21207671be55a91587bc1330b5/LICENSE',timeout=30) as response:
+              license=response.read()
           assert hashlib.sha256(license).hexdigest()=='3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986'
           for name,content in [('composer.lock',composer),('package-lock.json',node),('LICENSE',license)]:
               if Path(name).exists():raise RuntimeError('Refusing to overwrite '+name)
