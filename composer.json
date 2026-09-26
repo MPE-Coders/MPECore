@@ -1,0 +1,45 @@
+{
+  "name": "xackigiff/mpe-core",
+  "description": "Experimental Rust Bedrock world engine with a genuine RakLib PHP gateway",
+  "type": "project",
+  "license": "GPL-3.0-or-later",
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/NetherGamesMC/BedrockProtocol"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/NetherGamesMC/BedrockData"
+    }
+  ],
+  "require": {
+    "php": "^8.2",
+    "ext-json": "*",
+    "ext-openssl": "*",
+    "ext-sockets": "*",
+    "ext-zlib": "*",
+    "ext-encoding": "~1.0.0",
+    "nethergamesmc/bedrock-protocol": "dev-master#aae6ba55aa75b2c188aade6cadca5fb6d2633d33",
+    "nethergamesmc/bedrock-data": "dev-master#b5fd03f4bcc790abe3d0dcb31151566ca29d42cb",
+    "pocketmine/raklib": "1.2.1",
+    "pocketmine/log": "0.4.0",
+    "pocketmine/binaryutils": "0.2.7",
+    "pocketmine/color": "0.3.1",
+    "pocketmine/math": "1.0.0",
+    "pocketmine/nbt": "1.2.0",
+    "ramsey/uuid": "4.9.2",
+    "brick/math": "0.13.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "mpe\\": "gateway/src/"
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": false
+  }
+}

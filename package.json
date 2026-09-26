@@ -1,0 +1,16 @@
+{
+  "name": "mpe-core-tools",
+  "version": "0.4.0",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test test-client/test/*.test.cjs",
+    "doctor": "node tools/codec-doctor.cjs"
+  },
+  "dependencies": {
+    "bedrock-protocol": "3.60.1",
+    "minecraft-data": "3.117.0"
+  }
+}

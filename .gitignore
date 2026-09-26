@@ -1,0 +1,16 @@
+/target/
+/vendor/
+/node_modules/
+/.runtime/
+/.client-auth/
+/server.json
+/server.playtest-*.json
+/data/
+/client-report.json
+/playtest-report.json
+/tests/results/e2e/
+**/__pycache__/
+*.pyc
+
+/logs/
+/tests/results/

@@ -1,0 +1,1 @@
+{"name":"Commands","api":"0.3","version":"0.4.0","entry":"src/Main.php","main":"MpeExamples\\Commands","commands":["hello","whereami"]}

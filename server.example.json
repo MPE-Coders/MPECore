@@ -1,0 +1,26 @@
+{
+  "server-name": "MPE-Core 0.4.0 Creative Playtest",
+  "host": "127.0.0.1",
+  "port": 19132,
+  "max-players": 8,
+  "online-mode": true,
+  "encryption": true,
+  "view-distance": 4,
+  "max-view-distance": 6,
+  "chunks-per-tick": 4,
+  "protocols": [
+    1001
+  ],
+  "advertise-protocol": 1001,
+  "debug": false,
+  "timezone": "Europe/Moscow",
+  "auth-timeout": 25,
+  "packet-dump": false,
+  "experimental-codecs": false,
+  "test-mode": false,
+  "operators": [],
+  "world-directory": "data/world",
+  "allow-building": true,
+  "playtest-log": true,
+  "spawn-timeout": 90
+}

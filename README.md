@@ -1,9 +1,42 @@
 # MPECore
 
-Rust world engine + PHP/RakLib Bedrock gateway and PHP plugin API.
+Монорепозиторий экспериментального Minecraft Bedrock-сервера: Rust-движок, PHP/RakLib-шлюз, PHP Plugin API и отдельный headless-клиент.
 
-This repository is the home of the MPECore monorepo. Source import and automatic Linux build verification are being prepared for `0.5.0-alpha`.
+## Где исходники
 
-The current baseline has passed a local real RakNet/Bedrock headless test with encrypted offline identity, movement, chat, Creative block placement/breaking, and reconnect. This is **not** a claim that an official Minecraft client or a real online account has been tested, nor that vanilla gameplay is complete.
+- `src/` — Rust: Server, Player, World, чанки, плоский генератор, журнал блоков и IPC.
+- `gateway/` — PHP/RakLib, авторизация, Bedrock-пакеты, палитры, инвентарь, консоль и хост плагинов.
+- `plugins/` — настоящие примеры PHP-плагинов.
+- `test-client/` — отдельная программа для входа по RakNet и игровых сценариев.
+- `tests/` — unit-тесты, проверки реального Rust IPC и установленных кодеков.
+- `tools/` — установка зависимостей, сборка и изолированный E2E-стенд.
+- `resources/` — канонические строительные блоки и явные профили протоколов.
+- `.github/workflows/` — автоматическая сборка и проверки.
 
-No Microsoft account credentials, authentication caches, live worlds, or private server configuration belong in this repository.
+## Статус
+
+Это открытая рабочая база исходников из 0.4.0-alpha с исправлением инициализации поля в тесте реального StartGame-кодека. Это не законченный релиз и не обещание ванильной совместимости.
+
+В предыдущем локальном прогоне Rust был скомпилирован: 12 Rust-тестов и проверка настоящего IPC прошли. Установленные кодеки профиля 975 также прошли отдельную проверку. Эти результаты **не равны** успешному входу официального Minecraft. Текущий прогон в Actions — воспроизводимый источник результатов для опубликованного коммита.
+
+Выявленные блокировки: `1001` содержит несогласованные palette/meta (16913/16914); используемый JS backend RakNet отправляет версию 10, тогда как сервер ожидает 11. Эти ошибки не скрываются зелёными unit-тестами.
+
+## Запуск
+
+```bash
+./start.sh --unit
+./start.sh --playtest --version 1.26.20
+```
+
+Для сборки нужны Rust/Cargo >=1.74, Python >=3.10 и PHP >=8.2 с ext-encoding. Штатный скрипт подготавливает локальный PHP-runtime. Для сетевого тестового клиента нужен Node.js >=24.
+
+```bash
+./tools/node-install.sh
+./tools/e2e.sh --version 1.26.20 --scenario creative
+```
+
+Плейтест с официальным клиентом использует онлайн-авторизацию. Изолированный E2E использует offline-идентичность только на loopback. Полного набора блоков, Survival, мобов, редстоуна и обычной генерации пока нет.
+
+Первоначальная документация: `docs/README_0.4.md`. Исторические отчёты в `evidence/` и `TEST_REPORT.md` относятся к исходному архиву, а не автоматически к последнему коммиту.
+
+Не публикуйте аккаунты Microsoft, JWT, `.client-auth`, рабочие карты, приватную конфигурацию и логи с персональными данными.
