@@ -1,0 +1,44 @@
+name: Bedrock 26.51 / 2193 integration
+on:
+  push:
+    branches: [main, 'feat/bedrock-26.51']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  modern:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install tools and locked protocol dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends php-cli php-mbstring python3 curl ca-certificates unzip git
+          mkdir -p ci-results
+          ./tools/node-install.sh
+      - name: Verify and import immutable modern data
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/prepare-modern-data.py --protocol 2193 2>&1 | tee ci-results/data-2193.log
+      - name: Real 2193 packet schemas
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/codec-doctor.cjs --protocol=2193 --out=ci-results/client-2193.json 2>&1 | tee ci-results/schema-2193.log
+      - name: Record scope
+        if: always()
+        run: echo 'Data and packet checks are not a verified official-client join.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bedrock-2193-${{ github.sha }}
+          path: ci-results/
+          if-no-files-found: warn
+          retention-days: 14
