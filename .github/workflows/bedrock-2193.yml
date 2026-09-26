@@ -58,6 +58,29 @@ jobs:
           cargo +1.85.1 test --locked 2>&1 | tee ci-results/rust-test.log
           cargo +1.85.1 build --release --locked 2>&1 | tee ci-results/rust-build.log
           python3 tests/engine_ipc.py target/release/mpe-core 2>&1 | tee ci-results/engine-ipc.log
+      - name: Export replay environment for the development branch
+        if: github.ref == 'refs/heads/feat/bedrock-26.51'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ci-replay
+          git archive --format=tar HEAD | gzip -1n > ci-replay/source.tar.gz
+          tar -czf ci-replay/deps.tar.gz vendor node_modules .runtime/bedrock
+          tar -czf ci-replay/php.tar.gz .runtime/php
+          tar -czf ci-replay/engine.tar.gz target/release/mpe-core
+          NODE_ROOT="$(dirname "$(dirname "$(command -v node)")")"
+          tar -czf ci-replay/node.tar.gz -C "$NODE_ROOT" bin/node LICENSE
+          # Exact allow-list above: no .git credentials, user config, world,
+          # auth cache, environment dump, npm credentials or server packets.
+          sha256sum ci-replay/*.tar.gz > ci-replay/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/feat/bedrock-26.51'
+        with:
+          name: replay-env-${{ github.sha }}
+          path: ci-replay/
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
       - name: Actual isolated RakNet client login and Creative actions
         shell: bash
         run: |
