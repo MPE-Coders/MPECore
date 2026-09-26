@@ -210,6 +210,11 @@
     "tools/runtime-env.sh",
     "tools/schema-diff.cjs",
     "tools/upstream-audit.py",
-    "tools/verify.py"
+    "tools/verify.py",
+    "test-client/lib/world-start.cjs",
+    "gateway/src/network/mcpe/WorldStartData.php",
+    "test-client/test/world-start.test.cjs",
+    "tools/world-start-doctor.cjs",
+    "docs/STARTGAME_PREREQUISITES.md"
   ]
 }

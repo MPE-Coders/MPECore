@@ -4,7 +4,7 @@
  */
 const ALLOWED=new Set(['request_network_settings','network_settings','login','play_status','server_to_client_handshake',
   'client_to_server_handshake','disconnect','resource_packs_info','resource_pack_stack','resource_pack_client_response',
-  'start_game','item_registry','available_entity_identifiers','biome_definition_list','update_attributes','update_abilities',
+  'jigsaw_structure_data','voxel_shapes','start_game','item_registry','available_entity_identifiers','biome_definition_list','update_attributes','update_abilities',
   'update_adventure_settings','creative_content','chunk_radius_update','request_chunk_radius','network_chunk_publisher_update',
   'level_chunk','set_local_player_as_initialized','client_cache_status','network_stack_latency','player_auth_input',
   'move_player','text','command_request','update_block','inventory_content','inventory_slot',

@@ -19,7 +19,7 @@ try{
     // Force PHP to validate interface signatures against the actual RakLib package.
     class_exists(\mpe\network\RakLibInterface::class);class_exists(\mpe\utils\RakLogger::class);
     if(BlockPalette::key('test',CompoundTag::create()->setByte('v',1))===BlockPalette::key('test',CompoundTag::create()->setInt('v',1))){throw new RuntimeException('NBT type information was lost');}
-    $count=0;
+    $count=0;$startupCorpus=[];
     foreach($server->registries as $id=>$registry){
         $packets=SpawnSequence::packets($registry,42,[0.5,64.0,0.5],'Codec test');
         $meta=SpawnSequence::actorData(42);
@@ -27,6 +27,14 @@ try{
         foreach([T\entity\EntityMetadataFlags::AFFECTED_BY_GRAVITY,T\entity\EntityMetadataFlags::HAS_COLLISION] as $flag){
             if(($f & (1<<$flag))===0){throw new RuntimeException('Player gravity/collision flag missing');}
         }
+        $expectedStartup=[];
+        if($id>=712){$expectedStartup[]=P\JigsawStructureDataPacket::class;}
+        if($id>=924){$expectedStartup[]=P\VoxelShapesPacket::class;}
+        $expectedStartup[]=P\StartGamePacket::class;
+        if(array_map(static fn($p)=>$p::class,array_slice($packets,0,count($expectedStartup)))!==$expectedStartup){
+            throw new RuntimeException('Missing or reordered world-start prerequisite packets');
+        }
+        $startupCorpus[$id]=['protocol'=>$id,'version'=>$registry->profile->version,'packets'=>[]];
         $inventory=new PlayerInventory();
         array_push($packets,...InventoryNetwork::contents($registry,$inventory));
         $changes=$inventory->request(-1,[['type'=>'move','source'=>[28,0,1],'destination'=>[29,12,0],'count'=>1]],true);
@@ -63,6 +71,10 @@ try{
                     );
                 }
                 $wire=PacketCodec::encode($packet,$id);
+                if(in_array($class,$expectedStartup,true)){
+                    $startupCorpus[$id]['packets'][]=['wire'=>base64_encode($wire)];
+                }
+
                 $copy=\mpe\network\mcpe\PacketDecodeFactory::create($class);
                 $base=$id>1001?1001:$id;
                 $back=$id>1001?\mpe\network\mcpe\CodecBridge::convert($wire,$id,1001):$wire;
@@ -89,6 +101,18 @@ try{
                     if (!$rejected) { throw new RuntimeException('Truncated StartGame was accepted'); }
                     echo "PASS StartGame telemetry + wire roundtrip + truncation profile $id\n";
                 }
+                if($copy instanceof P\JigsawStructureDataPacket){
+                    $structureRoot=$copy->getNbt()->getRoot();
+                    foreach(['processors','template_pools','jigsaws','structure_sets'] as $key){
+                        $list=$structureRoot->getListTag($key);
+                        if($list===null||$list->count()!==0||$list->getTagType()!==\pocketmine\nbt\NBT::TAG_Compound){
+                            throw new RuntimeException('World-start structure registry is incomplete or not a typed empty list: '.$key);
+                        }
+                    }
+                }
+                if($copy instanceof P\VoxelShapesPacket && ($copy->getShapes()!==[]||$copy->getNameMap()!==[]||($id>=944&&$copy->getCustomShapeCount()!==0))){
+                    throw new RuntimeException('Unexpected custom shapes in flat-world startup data');
+                }
                 $count++;
             } catch (Throwable $e) {
                 throw new RuntimeException("Profile $id ({$registry->profile->version}), $class: ".$e->getMessage(),0,$e);
@@ -105,5 +129,8 @@ try{
         if(!$decoded instanceof P\MobEquipmentPacket||$decoded->hotbarSlot!==0){throw new RuntimeException('Equipment inbound codec mismatch');}
         echo "PASS installed palette and packet-codec profile $id ({$registry->profile->version})\n";
     }
+    $corpus=json_encode(['schema'=>1,'profiles'=>array_values($startupCorpus)],JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT);
+    if(file_put_contents($root.'/data/world-start-codec.json',$corpus)!==strlen($corpus)){throw new RuntimeException('Cannot write world-start wire corpus');}
+    echo "PASS world-start prerequisite sequence and typed empty registries\n";
     echo "$count outgoing packets roundtripped using installed native codecs / opted-in schema adapters. This is NOT a client join test.\n";
 }catch(Throwable $e){fwrite(STDERR,"INTEGRATION FAILED: ".$e::class.': '.$e->getMessage()."\n".$e->getTraceAsString()."\n");exit(1);}

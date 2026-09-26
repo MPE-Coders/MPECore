@@ -27,7 +27,8 @@ final class SpawnSequence {
             0,0,'',true,'MPE-Core/0.4.0',Uuid::fromString(Uuid::NIL),false,false,false,
             new T\NetworkPermissions(false),false,null,new T\ServerTelemetryData('','','',''),[],0,$registry->items
         );
-        $packets=[$start,self::actorData($runtimeId)];
+        // Both registries must precede StartGame, not follow it with the item/biome lists.
+        $packets=[...WorldStartData::packets($registry->profile->id),$start,self::actorData($runtimeId)];
         if($registry->profile->id>=776){$packets[]=P\ItemRegistryPacket::create($registry->items);}
         $packets[]=$registry->actors;$packets[]=$registry->biomes;
         $packets[]=P\UpdateAttributesPacket::create($runtimeId,[

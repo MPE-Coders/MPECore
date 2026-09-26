@@ -18,6 +18,7 @@ async function run(host,port){
       const c=new Client({host,port,version,username:`Multi_${protocol}`,offline:true,delayedInit:true,autoInitPlayer:true,
         transport:'raknet',raknetBackend:'jsp-raknet',useRaknetWorkers:false,connectTimeout:15000,conLog:()=>{}})
       const inbox=new Inbox();peers.push({c,inbox,version,protocol})
+      require('./lib/world-start.cjs').attachWorldStartGuard(c,inbox,protocol)
       const profile=require(`${ROOT}/resources/protocols/${protocol}.json`)
       const file=protocol===2193?`${ROOT}/.runtime/bedrock/2193/${profile.block_palette}`:`${ROOT}/vendor/nethergamesmc/bedrock-data/${profile.block_palette}`
       const peer=peers.at(-1);peer.palette=loadPalette(file)
@@ -30,6 +31,7 @@ async function run(host,port){
       c.once('connect_allowed',()=>{attachRaknet11(c);c.connect()})
       const ready=Promise.all([inbox.expect('spawn',()=>true,20000),inbox.expect('level_chunk',p=>p.x===0&&p.z===0,20000),inbox.expect('inventory_content',playerInventory,20000)])
       c.init();const result=await ready;peer.held=result[2].input[0]
+      peer.worldStart=await inbox.expect('world_start_ready',()=>true,20000)
     }
     await sleep(300)
     const target={x:4,y:64,z:0},clicked={x:4,y:63,z:0}
@@ -41,7 +43,7 @@ async function run(host,port){
     peers[0].c.queue('inventory_transaction',useItem('break_block',target,peers[0].held,[0.5,64,0.5],peers[0].palette.grass))
     await Promise.all(removals)
     assert(new Set(peers.map(p=>p.palette.grass)).size>1,'This must exercise different palette IDs')
-    const report={success:true,scope:'simultaneous encrypted offline clients; not official-client graphics or player avatars',protocols:peers.map(p=>p.protocol),grassIds:peers.map(p=>p.palette.grass),crossProtocolPlacement:true,crossProtocolBreak:true}
+    const report={success:true,scope:'simultaneous encrypted offline clients; not official-client graphics or player avatars',protocols:peers.map(p=>p.protocol),grassIds:peers.map(p=>p.palette.grass),crossProtocolPlacement:true,crossProtocolBreak:true,worldStart:peers.map(p=>p.worldStart)}
     console.log('PASS multiversion same port: '+JSON.stringify(report))
     return report
   }finally{finished=true;for(const p of peers){p.c.close();p.inbox.fail(Error('Test finished'))}}

@@ -56,6 +56,7 @@ jobs:
           Path('server.json').write_text(json.dumps(c))
           PY
           ./start.sh --doctor 2>&1 | tee ci-results/doctor-2193.log
+          node tools/world-start-doctor.cjs 2>&1 | tee ci-results/world-start-wire.log
       - name: Build real Rust engine and check IPC
         shell: bash
         run: |
@@ -84,6 +85,7 @@ jobs:
             target/release/mpe-core
             tests/results/
             data/upstream-audit.json
+            data/world-start-codec.json
             .runtime/bedrock/1001/block_state_meta_map-1.26.30.json
           include-hidden-files: true
           if-no-files-found: warn

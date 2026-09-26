@@ -10,6 +10,8 @@ function jsonMessage(value,prefix,nonce){
 async function scenario(client,inbox,o,report){
   const check=(name,evidence)=>{report.checks.push({name,passed:true,evidence});o.log?.(`PASS ${name}`)}
   const start=await inbox.expect('start_game',()=>true,o.timeout)
+  const prerequisite=await inbox.expect('world_start_ready',()=>true,o.timeout)
+  check('world-start-data-before-start-game',prerequisite)
   check('start-game',{runtime:String(start.runtime_entity_id),protocol:o.protocol})
   await inbox.expect('spawn',()=>true,o.timeout);check('spawn-and-initialization',{})
   const chunk=await inbox.expect('level_chunk',p=>p.sub_chunk_count>0&&Buffer.isBuffer(p.payload),o.timeout)

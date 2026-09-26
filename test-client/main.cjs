@@ -37,9 +37,11 @@ No Microsoft password is requested by this program; follow the dependency's devi
     if(Number(process.versions.node.split('.')[0])<24)throw Error('Real protocol client requires Node.js >=24 (upstream bedrock-protocol requirement)')
     const {Client}=require('bedrock-protocol')
     inbox=new Inbox()
+    // The guard is attached after construction below, before init/network activity.
     client=new Client({host:o.host,port:o.port,version:o.version,username:o.username,offline:o.offline,
       profilesFolder:o['profiles-folder']||path.join(ROOT,'.client-auth'),delayedInit:true,autoInitPlayer:true,
       transport:'raknet',raknetBackend:'jsp-raknet',useRaknetWorkers:false,connectTimeout:o.timeout,conLog:log})
+    require('./lib/world-start.cjs').attachWorldStartGuard(client,inbox,o.protocol)
     const fatal=e=>{if(!finishing)inbox.fail(e instanceof Error?e:Error(String(e)))}
     client.on('error',fatal);client.on('close',()=>fatal(Error('Connection closed before scenario completed')))
     client.on('kick',p=>fatal(Error(`Kicked: ${p.message||'no reason'}`)))
