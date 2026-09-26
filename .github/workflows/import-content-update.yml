@@ -1,0 +1,97 @@
+name: Materialize verified content source
+on:
+  push:
+    branches: [bootstrap/content-update-20260926]
+permissions:
+  contents: write
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Verify exact source transport before applying
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ci-materialize
+          python3 - <<'PY'
+          import base64, gzip, hashlib, pathlib, subprocess
+          root=pathlib.Path('.bootstrap/content-parts')
+          names=[f'{i:04d}' for i in range(37)]+[f'z{i:04d}' for i in range(128)]
+          assert sorted(p.name for p in root.iterdir())==names
+          text=''.join((root/name).read_text() for name in names)
+          assert len(text)==85892, len(text)
+          payload=base64.b64decode(text,validate=True)
+          assert len(payload)==64417
+          assert hashlib.sha256(payload).hexdigest()=='01ce1305c41f891d2923882283121972869c4db144fb5d832704c1b82fbedc6d'
+          patch=gzip.decompress(payload)
+          assert len(patch)==214356
+          target=pathlib.Path('ci-materialize/content.patch');target.write_bytes(patch)
+          subprocess.run(['git','apply','--check',str(target)],check=True)
+          subprocess.run(['git','apply',str(target)],check=True)
+          print('PASS exact content source transport and patch application')
+          PY
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Rebuild content from pinned public sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends php-cli php-mbstring python3 curl ca-certificates unzip git
+          export ROOT="$PWD"
+          source tools/php-runtime.sh
+          source tools/composer-install.sh
+          ./tools/node-install.sh
+          python3 tools/prepare-content.py 2>&1 | tee ci-materialize/rebuild.log
+          php tools/content-report.php resources/content/recipe-coverage.json
+          python3 tools/check-source.py
+      - name: Commit only ordinary allow-listed source and reproduced data
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,pathlib,subprocess,tempfile
+          base='7a711967d74053f3594f39293ef9981714a43e3a'
+          expected='be682acca9ece79d84732bbf4003cd24fd269b1e'
+          names=json.loads(pathlib.Path('resources/source-files.json').read_text())['files']
+          assert len(names)==242 and len(set(names))==242
+          assert all(not p.startswith(('.bootstrap/','.runtime/','vendor/','node_modules/','data/','logs/','bin/')) for p in names)
+          with tempfile.TemporaryDirectory() as temp:
+              env={**os.environ,'GIT_INDEX_FILE':str(pathlib.Path(temp)/'index')}
+              subprocess.run(['git','read-tree','--empty'],env=env,check=True)
+              subprocess.run(['git','add','--',*names],env=env,check=True)
+              tree=subprocess.check_output(['git','write-tree'],env=env,text=True).strip()
+          pathlib.Path('ci-materialize/tree.txt').write_text(tree+'\n')
+          if tree!=expected:
+              subprocess.run(['git','ls-tree','-r',tree],check=True)
+              raise SystemExit('Generated source tree differs from locally tested exact tree: '+tree)
+          env={**os.environ,'GIT_AUTHOR_NAME':'github-actions[bot]','GIT_AUTHOR_EMAIL':'41898282+github-actions[bot]@users.noreply.github.com','GIT_COMMITTER_NAME':'github-actions[bot]','GIT_COMMITTER_EMAIL':'41898282+github-actions[bot]@users.noreply.github.com'}
+          commit=subprocess.check_output(['git','commit-tree',tree,'-p',base],env=env,input='Content catalog, ordinary crafting, u32 world storage and default-v1 generator\n',text=True).strip()
+          subprocess.run(['git','push','origin',commit+':refs/heads/bootstrap/content-materialized-20260926'],check=True)
+          pathlib.Path('ci-materialize/commit.txt').write_text(commit+'\n')
+          subprocess.run(['git','archive','--format=tar.gz','--prefix=MPECore/','-o','ci-materialize/MPECore-source.tar.gz',commit],check=True)
+          print('PASS normal source tree:',tree,'commit:',commit)
+          PY
+      - name: Test ordinary content source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./start.sh --unit 2>&1 | tee ci-materialize/unit.log
+          python3 tools/audit-content.py --output ci-materialize/content-audit.json
+          rustup toolchain install 1.85.1 --profile minimal
+          cargo +1.85.1 test --locked 2>&1 | tee ci-materialize/rust.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: materialized-content-${{ github.sha }}
+          path: |
+            ci-materialize/*.log
+            ci-materialize/*.json
+            ci-materialize/*.txt
+            ci-materialize/MPECore-source.tar.gz
+          retention-days: 7
