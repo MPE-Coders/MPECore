@@ -1,0 +1,80 @@
+name: Complete source and engine
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Archive exactly the checked-out source (including dotfiles)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist ci-results
+          git archive --format=tar --prefix=MPECore/ HEAD | gzip -n > dist/MPECore-source.tar.gz
+          git rev-parse HEAD > ci-results/commit.txt
+          sha256sum dist/MPECore-source.tar.gz > ci-results/source.sha256
+      - name: Prepare standalone test tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends php-cli php-mbstring
+          php --version
+          node --version
+          python3 --version
+      - name: Check source completeness
+        run: |
+          if test -f tools/check-source.py; then
+            python3 tools/check-source.py
+          else
+            test -f tests/unit.php
+            test -f tests/data_unit.php
+            test -f tests/fixtures/cipher.json
+            test -f tools/lib/bedrock_data.py
+            test -f test-client/main.cjs
+            test -f resources/protocols/975.json
+          fi
+      - name: Run the same standalone command as the user
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./start.sh --unit 2>&1 | tee ci-results/unit.log
+      - name: Install pinned Rust compiler
+        run: rustup toolchain install 1.85.1 --profile minimal
+      - name: Test and build the actual Rust source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo +1.85.1 test --locked 2>&1 | tee ci-results/rust-test.log
+          cargo +1.85.1 build --release --locked 2>&1 | tee ci-results/rust-build.log
+          sha256sum target/release/mpe-core > ci-results/engine.sha256
+      - name: Test real Rust subprocess and persistence over IPC
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/engine_ipc.py target/release/mpe-core 2>&1 | tee ci-results/engine-ipc.log
+      - name: Explain the boundary of these checks
+        if: always()
+        run: |
+          printf '%s\n' 'Standalone tests and real engine IPC are NOT a Bedrock login or an official Minecraft playtest.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish exact source, available engine binary and actual logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpe-source-and-engine-${{ github.sha }}
+          path: |
+            dist/MPECore-source.tar.gz
+            ci-results/
+            target/release/mpe-core
+          if-no-files-found: error
+          retention-days: 14
