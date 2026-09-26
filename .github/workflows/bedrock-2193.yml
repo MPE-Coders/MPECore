@@ -32,13 +32,41 @@ jobs:
         run: |
           set -euo pipefail
           node tools/codec-doctor.cjs --protocol=2193 --out=ci-results/client-2193.json 2>&1 | tee ci-results/schema-2193.log
+      - name: Installed PHP bridge codecs and independent NBT verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path('server.example.json').read_text())
+          c.update({'host':'127.0.0.1','protocols':[2193],'advertise-protocol':2193,'experimental-codecs':True})
+          Path('server.json').write_text(json.dumps(c))
+          PY
+          ./start.sh --doctor 2>&1 | tee ci-results/doctor-2193.log
+      - name: Build real Rust engine and check IPC
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.85.1 --profile minimal
+          cargo +1.85.1 test --locked 2>&1 | tee ci-results/rust-test.log
+          cargo +1.85.1 build --release --locked 2>&1 | tee ci-results/rust-build.log
+          python3 tests/engine_ipc.py target/release/mpe-core 2>&1 | tee ci-results/engine-ipc.log
+      - name: Actual isolated RakNet client login and Creative actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/e2e.sh --version 1.26.51 --scenario creative 2>&1 | tee ci-results/e2e-2193.log
       - name: Record scope
         if: always()
-        run: echo 'Data and packet checks are not a verified official-client join.' >> "$GITHUB_STEP_SUMMARY"
+        run: echo 'Data, codecs and loopback headless tests do not verify Microsoft online auth or the official Minecraft client.' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: bedrock-2193-${{ github.sha }}
-          path: ci-results/
+          path: |
+            ci-results/
+            tests/results/
+            data/upstream-audit.json
           if-no-files-found: warn
           retention-days: 14

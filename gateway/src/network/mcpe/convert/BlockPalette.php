@@ -13,6 +13,7 @@ final class BlockPalette {
     public readonly string $grassName;
     public readonly string $metaSha256;
     private readonly string $metaPath;
+    /** @var array<string,int> Typed canonical block-state key -> version-local runtime ID. */
     private array $states=[];
     private array $runtimeMap=[];
     public function __construct(ProtocolProfile $profile,string $assetRoot){
@@ -22,7 +23,12 @@ final class BlockPalette {
         $metaBytes=file_get_contents($this->metaPath);json_decode($metaBytes,true,512,JSON_THROW_ON_ERROR);
         $this->metaSha256=hash('sha256',$metaBytes);unset($metaBytes);
         $roots=(new NetworkNbtSerializer())->readMultiple($bytes);
-        $this->count=count($roots);\mpe\data\ProfileGuard::metadata($this->metadata(),$this->count);$air=null;$grass=null;$grassName='';
+        $this->count=count($roots);
+        if($profile->id===2193){
+            $info=$this->metadata();
+            if(($info['kind']??null)!=='ordered-states-without-legacy-meta' || ($info['states']??null)!==$this->count || ($info['palette_sha256']??null)!==$this->sha256){throw new \UnexpectedValueException('2193 ordered palette manifest mismatch');}
+        }else{\mpe\data\ProfileGuard::metadata($this->metadata(),$this->count);}
+        $air=null;$grass=null;$grassName='';
         foreach($roots as $runtimeId=>$root){
             $nbt=$root->mustGetCompoundTag();$name=$nbt->getString('name');$states=$nbt->getCompoundTag('states');
             if($states===null){throw new \UnexpectedValueException('Block palette entry has no states compound');}
@@ -47,6 +53,7 @@ final class BlockPalette {
     private static function typed(Tag $tag):array {
         $v=$tag->getValue();
         if(is_array($v)){foreach($v as $k=>$child){if($child instanceof Tag){$v[$k]=self::typed($child);}}if($tag instanceof CompoundTag){ksort($v,SORT_STRING);}}
+        // A byte 1 and an int 1 must NEVER be treated as the same block property.
         return [$tag->getType(),$v];
     }
     public function metadata():array{return json_decode(file_get_contents($this->metaPath),true,512,JSON_THROW_ON_ERROR);}

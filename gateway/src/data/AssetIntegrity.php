@@ -40,6 +40,10 @@ final class AssetIntegrity {
 
     public function profile(array $profile, string $assetRoot): array {
         ProfileGuard::validate($profile);
+        if($profile['protocol']===2193){
+            self::references(['nethergamesmc/bedrock-protocol'=>$profile['codec_reference']],$this->references);
+            return ModernData::fingerprints($this->root,$profile);
+        }
         self::references([
             'nethergamesmc/bedrock-data'=>$profile['data_reference'],
             'nethergamesmc/bedrock-protocol'=>$profile['codec_reference']

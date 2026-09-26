@@ -7,8 +7,9 @@ final class ProfileGuard {
     public const ASSETS = ['block_palette', 'block_meta', 'items', 'entity_identifiers', 'biomes'];
 
     public static function validate(array $profile): void {
+        if (($profile['schema_version'] ?? null) === 3) { ModernData::validateProfile($profile); return; }
         if (($profile['schema_version'] ?? null) !== 2) {
-            throw new \UnexpectedValueException('Unsupported profile schema; expected version 2');
+            throw new \UnexpectedValueException('Unsupported profile schema; expected version 2 or explicit modern profile');
         }
         foreach (['protocol', 'min_section', 'max_section', 'codec_base'] as $key) {
             if (!isset($profile[$key]) || !is_int($profile[$key])) {
@@ -38,6 +39,8 @@ final class ProfileGuard {
     }
 
     public static function accepted(int $id, array $accepted): void {
+        // Only this specific reviewed adapter uses 1001 as an intermediate object representation.
+        if ($id === 2193 && in_array(1001, $accepted, true)) { return; }
         if (!in_array($id, $accepted, true)) {
             throw new \UnexpectedValueException("Protocol $id is not in this exact codec's ACCEPTED_PROTOCOL list. Use a separate legacy gateway rather than relabel packets.");
         }

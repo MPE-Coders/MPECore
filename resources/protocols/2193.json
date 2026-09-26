@@ -1,1 +1,12 @@
-{"protocol":2193,"game_version":"1.26.51","status":"blocked-unverified-data","codec":"prismarine-transcode","codec_base":1001,"block_palette":"canonical_block_states.nbt","block_meta":"block_state_meta_map.json","items":"required_item_list.json","min_section":-4,"max_section":19,"grass_names":["minecraft:grass","minecraft:grass_block"],"provenance":"https://github.com/PrismarineJS/minecraft-data/blob/master/data/dataPaths.json","notes":"Schema adapter retained for development only. No proven NetherGames palette bundle for this protocol. Copying the 1001 filenames is NOT compatibility.","schema_version":2,"data_reference":"b5fd03f4bcc790abe3d0dcb31151566ca29d42cb","codec_reference":"aae6ba55aa75b2c188aade6cadca5fb6d2633d33","entity_identifiers":"entity_identifiers.nbt","biomes":"biome_definitions.json","data_status":"missing-version-specific-data"}
+{
+  "protocol":2193,"game_version":"1.26.51","status":"experimental-unverified-client",
+  "codec":"prismarine-bridge","codec_base":1001,"schema_version":3,
+  "block_palette":"block_states-2193.nbt","block_meta":"block_state_info-2193.json",
+  "items":"required_item_list-2193.json","entity_identifiers":"entity_identifiers-2193.nbt",
+  "biomes":"biome_definitions-2193.json","min_section":-4,"max_section":19,
+  "grass_names":["minecraft:grass","minecraft:grass_block"],
+  "data_reference":"a8a4341d7763d6eb8547cff3ca46b4153d60163d",
+  "codec_reference":"aae6ba55aa75b2c188aade6cadca5fb6d2633d33",
+  "data_status":"pinned-cloudburst-2193","provenance":"resources/modern/2193.sources.json",
+  "notes":"26.50/26.51 use wire protocol 2193, not 12193. Full ordered palette and item registry from pinned Cloudburst/Pumpkin data. Flat Creative gameplay only; server-defined plains biome id 1."
+}

@@ -23,6 +23,8 @@ function parseArgs(argv) {
   if (!['smoke','edit','connect','creative'].includes(o.scenario)) throw Error('Scenario must be connect, smoke, creative or edit')
   if (!/^[a-zA-Z0-9_ .@+-]{1,128}$/.test(o.username)) throw Error('Invalid username/account identifier')
   if (Buffer.byteLength(o.chat) > 160) throw Error('Chat message exceeds 160 bytes')
+  if(o.version==='12193')throw Error('26.51 uses protocol 2193, not 12193')
+  if(o.version.startsWith('26.'))o.version='1.'+o.version
   if (o.version !== 'auto') {
     const p = catalog.find(v => v.version === o.version || String(v.protocol) === o.version)
     if (!p) throw Error('Version not in explicit catalog; use --list-protocols')

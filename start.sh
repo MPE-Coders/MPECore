@@ -10,13 +10,13 @@ case "$MODE" in
   --check-source) exec python3 "$ROOT/tools/check-source.py";;
   --help|-h)
     printf '%s\n' './start.sh              Build missing/outdated Rust binary and start' \
-      './start.sh --playtest --version 1.26.30  Online LAN test world' \
+      './start.sh --playtest --version 26.51  Online LAN test world (protocol 2193)' \
       './start.sh --check-source Check that all tracked source files are present' \
       './start.sh --unit       PHP + JS + Python standalone tests (not a login test)' \
       './start.sh --cross-codec Real Prismarine -> NetherGames cross-codec checks' \
-      './tools/e2e.sh --version 1.26.30  Real isolated server + client test' \
-      './start.sh --audit-data Audit exact installed NBT/data profiles independently' \
-      './start.sh --verify --version 1.26.30  Full gate, report unrun stages honestly' \
+      './tools/e2e.sh --version 1.26.51  Real isolated server + client test' \
+      './start.sh --audit-data Audit exact installed native NBT/data profiles independently' \
+      './start.sh --verify --version 1.26.51  Full gate, report unrun stages honestly' \
       './start.sh --doctor     Install dependencies, verify profiles/packet encoders' \
       './start.sh --test       PHP + Rust + IPC + installed codec tests' \
       './start.sh --refresh-auth Refresh trusted Minecraft public keys' \
@@ -39,13 +39,14 @@ fi
 source "$ROOT/tools/php-runtime.sh"
 if [[ ! -f "$ROOT/vendor/autoload.php" ]]; then source "$ROOT/tools/composer-install.sh"; fi
 [[ -n "${MPE_CONFIG:-}" || -f "$ROOT/server.json" ]] || cp "$ROOT/server.example.json" "$ROOT/server.json"
+python3 "$ROOT/tools/prepare-modern-data.py" --if-config
 if [[ "$MODE" == --refresh-auth ]]; then exec "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/gateway/bootstrap.php" --refresh-auth; fi
 if [[ "$MODE" == --cross-codec ]]; then
   node "$ROOT/tools/codec-doctor.cjs" --out="$ROOT/.runtime/client-packets.json"
   exec "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/cross_codec.php" "$ROOT/.runtime/client-packets.json"
 fi
 audit_loaded() {
-  python3 "$ROOT/tools/upstream-audit.py" --compare-loaded "$ROOT/data/palettes.loaded.json" --output "$ROOT/data/upstream-audit.json"
+  python3 "$ROOT/tools/audit-loaded.py" --compare-loaded "$ROOT/data/palettes.loaded.json" --output "$ROOT/data/upstream-audit.json"
 }
 if [[ "$MODE" == --doctor ]]; then
   "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/integration.php"
