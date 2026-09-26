@@ -51,7 +51,8 @@ OPENSSL_CONF is selected explicitly: a readable user override, otherwise
 path fails; it does not silently disable validation. Actual P-384 key creation,
 ECDH, ES384 and AES-256-CTR are checked before binding UDP. Private keys and
 session secrets are never printed. This addresses Cannot create server P-384 key.
-Fixing library isolation does not upgrade an old Node installation: 24+ is required.
+Node >=24 is selected automatically; an old system Node is left unchanged while
+a pinned official project-local runtime is prepared. See [NODE_RUNTIME.md](NODE_RUNTIME.md).
 
 ## Native 1.26.30 metadata correction
 

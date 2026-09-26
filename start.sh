@@ -27,6 +27,7 @@ case "$MODE" in
     python3 "$ROOT/tools/check-source.py"
     "${MPE_PHP:-php}" "$ROOT/tests/unit.php"
     "${MPE_PHP:-php}" "$ROOT/tests/packet_factory_unit.php"
+    "${MPE_PHP:-php}" "$ROOT/tests/performance_unit.php"
     node --test "$ROOT"/test-client/test/*.test.cjs
     python3 -m unittest discover -s "$ROOT/tests" -p '*_test.py' -v
     exit 0;;
@@ -40,6 +41,17 @@ fi
 source "$ROOT/tools/php-runtime.sh"
 if [[ ! -f "$ROOT/vendor/autoload.php" ]]; then source "$ROOT/tools/composer-install.sh"; fi
 [[ -n "${MPE_CONFIG:-}" || -f "$ROOT/server.json" ]] || cp "$ROOT/server.example.json" "$ROOT/server.json"
+# Select the same Node for data import AND the PHP-owned codec subprocess.
+if [[ "$MODE" == --cross-codec || "$MODE" == --test ]] || python3 - <<'PYCONFIG'
+import json, os
+from pathlib import Path
+p=Path(os.environ.get('MPE_CONFIG','server.json'))
+raise SystemExit(0 if 2193 in json.loads(p.read_text()).get('protocols',[]) else 1)
+PYCONFIG
+then
+  source "$ROOT/tools/node-runtime.sh"
+  mpe_node_setup
+fi
 python3 "$ROOT/tools/prepare-native-metadata.py" --if-config
 python3 "$ROOT/tools/prepare-modern-data.py" --if-config
 if [[ "$MODE" == --refresh-auth ]]; then exec "${MPE_PHP_CMD[@]}" "$ROOT/gateway/bootstrap.php" --refresh-auth; fi
@@ -58,6 +70,7 @@ fi
 if [[ "$MODE" == --test ]]; then
   "${MPE_PHP_CMD[@]}" "$ROOT/tests/unit.php"
   "${MPE_PHP_CMD[@]}" "$ROOT/tests/packet_factory_unit.php"
+  "${MPE_PHP_CMD[@]}" "$ROOT/tests/performance_unit.php"
   node --test "$ROOT"/test-client/test/*.test.cjs
   python3 -m unittest discover -s "$ROOT/tests" -p '*_test.py' -v
   cargo test --locked

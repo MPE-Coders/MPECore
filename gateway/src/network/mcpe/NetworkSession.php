@@ -18,6 +18,7 @@ final class NetworkSession {
     public string $name='',$uuid='';
     public bool $authenticated=false;
     public CreativeGameHandler $game;
+    public readonly \mpe\utils\SessionPerformance $performance;
     public float $pitch=0.0,$yaw=0.0;
     public array $feet=[0.5,64.0,0.5];
     private float $phaseAt,$lastPacketAt,$lastTick=0.0,$rateWindow=0.0,$lastChat=0.0,$lastRadiusChange=0.0;
@@ -35,7 +36,7 @@ final class NetworkSession {
     private ?array $center=null;
     private array $wanted=[],$queued=[],$loaded=[];
     public function __construct(private Server $server,public readonly int $transportId,public readonly int $sid,public readonly string $address,public readonly int $port){
-        $this->phaseAt=$this->lastPacketAt=microtime(true);$this->radius=$server->config['view-distance'];$this->game=new CreativeGameHandler($this);
+        $this->phaseAt=$this->lastPacketAt=microtime(true);$this->radius=$server->config['view-distance'];$this->game=new CreativeGameHandler($this);$this->performance=new \mpe\utils\SessionPerformance();
     }
     public function registry():Registry{return $this->server->registries[$this->protocol]??throw new \RuntimeException('Unsupported protocol');}
     private function phase(string $state):void{$this->state=$state;$this->phaseAt=microtime(true);$this->diagnostic('phase',$state);$this->server->logger->debug("Session {$this->sid}: $state");}
@@ -133,6 +134,8 @@ final class NetworkSession {
         $bytes=PacketCodec::encode($packet,$this->protocol);
         if($this->server->config['packet-dump']){$this->server->logger->debug(sprintf('TX sid=%d proto=%d id=0x%x len=%d',$this->sid,$this->protocol,$packet->pid(),strlen($bytes)));}
         if($this->pendingBytes+strlen($bytes)>BatchCodec::MAX_BATCH){$this->flush();}
+        $kind=$packet instanceof P\LevelChunkPacket?'chunk':($packet instanceof P\UpdateBlockPacket?'block':'other');
+        $this->performance->packet($kind,strlen($bytes));
         $this->pendingPackets[]=$bytes;$this->pendingBytes+=strlen($bytes);
         if($immediate){$this->flush();}
     }
@@ -234,7 +237,9 @@ final class NetworkSession {
         $key=((int)floor($x/16)).':'.((int)floor($z/16));
         if(!isset($this->loaded[$key])){return;}
         $this->send(P\UpdateBlockPacket::create(new T\BlockPosition($x,$y,$z),$this->registry()->blocks->runtime($canonical),P\UpdateBlockPacket::FLAG_NETWORK,0));
-        unset($this->loaded[$key]);
+        // The client already has this column. UpdateBlock changes one state;
+        // invalidating loaded[] here retransmitted/remeshed a whole LevelChunk.
+        // Initial loads and explicit resync still go through the chunk scheduler.
     }
     public function canBuild():bool {return $this->server->config['allow-building'];}
     public function engine(string $bytes):void {$this->server->engineSend($bytes);}
@@ -260,6 +265,9 @@ final class NetworkSession {
     private function playerCommand(string $text):void {
         if(microtime(true)-$this->lastCommand<0.1){return;}$this->lastCommand=microtime(true);
         $parts=preg_split('/\s+/',trim($text));$command=strtolower(array_shift($parts));
+        if($command==='/mpe'&&($parts[0]??'')==='perf'){
+            $this->message('MPE-PERF '.json_encode($this->performance->snapshot(),JSON_THROW_ON_ERROR));return;
+        }
         if($command==='/mpe'&&($parts[0]??'')==='probe'){
             if(count($parts)!==5||!preg_match('/^[a-zA-Z0-9_-]{1,64}$/',$parts[1])){$this->message('Usage: /mpe probe nonce x y z');return;}
             foreach(array_slice($parts,2) as $v){if(!preg_match('/^-?[0-9]{1,6}$/',$v)){$this->message('Invalid coordinate');return;}}
@@ -287,7 +295,7 @@ final class NetworkSession {
             $this->requestSetBlock((int)$parts[0],(int)$parts[1],(int)$parts[2],$id,$nonce);return;
         }
         if($this->server->plugins->command($this,ltrim($command,'/'),$parts)){return;}
-        $this->message(match($command){'/help'=>'MPE-Core: /help /version /pos /blocks /block <name> /spawn /setblock /mpe probe','/version'=>'MPE-Core 0.4.0 | Rust + RakLib | protocol '.$this->protocol,'/pos'=>sprintf('Authoritative position: %.2f %.2f %.2f',...$this->feet),'/blocks'=>'air grass stone cobblestone dirt glass oak_planks diamond_block gold_block iron_block emerald_block obsidian',default=>'Unknown command. /help'});
+        $this->message(match($command){'/help'=>'MPE-Core: /help /version /pos /blocks /block <name> /spawn /setblock /mpe probe /mpe perf','/version'=>'MPE-Core 0.4.0 | Rust + RakLib | protocol '.$this->protocol,'/pos'=>sprintf('Authoritative position: %.2f %.2f %.2f',...$this->feet),'/blocks'=>'air grass stone cobblestone dirt glass oak_planks diamond_block gold_block iron_block emerald_block obsidian',default=>'Unknown command. /help'});
     }
     public function close(string $reason,bool $notify=true):void {
         if($this->state===self::CLOSING){return;}

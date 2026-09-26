@@ -146,13 +146,15 @@ final class CreativeGameHandler {
         $this->lastInteraction=$signature;$this->lastInteractionAt=$now;
         $block=$action===1?$this->inventory->held()->block:0;
         if($action===1 && $block===0) { return; }
-        $nonce='game_'.(++$this->serial);$this->pending[$nonce]=[$x,$z];
+        $nonce='game_'.(++$this->serial);$this->pending[$nonce]=[$x,$z,hrtime(true)];
         $this->session->engine("\x0b".Binary::u64($this->session->sid).Binary::str($nonce).chr($action).
             Binary::i32($x).Binary::i32($y).Binary::i32($z).pack('c',$face).chr($block));
         $this->session->diagnostic('interaction_requested',"$nonce $signature block=$block");
     }
     public function completed(string $nonce,bool $ok,string $reason=''): bool {
         if(!isset($this->pending[$nonce])) { return false; }
+        $elapsed=(hrtime(true)-$this->pending[$nonce][2])/1_000_000;
+        $this->session->performance->interaction($ok,$elapsed);
         unset($this->pending[$nonce]);
         $this->session->diagnostic($ok?'interaction_committed':'interaction_rejected',$nonce.' '.$reason);
         if(!$ok) { $this->sync(); }

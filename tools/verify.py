@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from lib.node_runtime import ensure_node, activated_env
 ROOT=Path(__file__).resolve().parents[1]
 
 def version(executable):
@@ -28,7 +29,8 @@ def main():
     p.add_argument('--output',type=Path,default=ROOT/'tests/results/verify.json')
     a=p.parse_args()
     catalog=json.loads((ROOT/'resources/protocol-catalog.json').read_text())
-    chosen=next((v for v in catalog if a.version in [str(v['protocol']),v['version']]),None)
+    spelling='1.'+a.version if a.version.startswith('26.') else a.version
+    chosen=next((v for v in catalog if spelling in [str(v['protocol']),v['version'],*v.get('aliases',[])]),None)
     if not chosen or chosen.get('server_status')=='blocked-unverified-data':
         p.error('Select an implemented native data profile, e.g. 1.26.30 / 1001. Unverified transcode profiles are blocked.')
     output=a.output.resolve();output.parent.mkdir(parents=True,exist_ok=True)
@@ -51,10 +53,18 @@ def main():
             row.update({'exit_code':done.returncode,'status':'passed' if done.returncode==0 else 'failed'})
         except (OSError,subprocess.SubprocessError) as exc:row.update({'status':'failed','error':str(exc)})
         print(name+': '+row['status'].upper(),flush=True);save();return row['status']=='passed'
-    unit=run('standalone',['bash',str(ROOT/'start.sh'),'--unit'])
-    config=json.loads((ROOT/'server.example.json').read_text());config.update({'protocols':[chosen['protocol']],'advertise-protocol':chosen['protocol']})
+    runtime_env=os.environ.copy();node_ok=False
+    if not a.source_only:
+        try:
+            node=ensure_node(ROOT,allow_download=a.install_deps,env=runtime_env)
+            runtime_env=activated_env(node,runtime_env);node_ok=True
+            report['tools']['system_node']=report['tools']['node']
+            report['tools']['node']=version(str(node));report['tools']['node_path']=str(node)
+        except (OSError,ValueError) as error:skip('node-runtime',str(error))
+    unit=run('standalone',['bash',str(ROOT/'start.sh'),'--unit'],runtime_env)
+    config=json.loads((ROOT/'server.example.json').read_text());config.update({'protocols':[chosen['protocol']],'advertise-protocol':chosen['protocol'],'experimental-codecs':chosen['protocol']==2193})
     with tempfile.TemporaryDirectory(prefix='mpe-verify-') as t:
-        configfile=Path(t)/'server.json';configfile.write_text(json.dumps(config));env=os.environ.copy();env['MPE_CONFIG']=str(configfile)
+        configfile=Path(t)/'server.json';configfile.write_text(json.dumps(config));env=runtime_env.copy();env['MPE_CONFIG']=str(configfile)
         rust_ok=False;codec_ok=False;data_ok=False;client_ok=False
         cargo=report['tools']['cargo'];rust=report['tools']['rustc']
         rv=re.search(r'rustc (\d+)\.(\d+)',rust or '')
@@ -69,16 +79,17 @@ def main():
         else:codec_ok=run('installed-codecs',['bash',str(ROOT/'start.sh'),'--doctor'],env)
         if a.source_only:skip('independent-data','source-only mode')
         elif not (ROOT/'vendor/nethergamesmc/bedrock-data').is_dir():skip('independent-data','Pinned BedrockData checkout/vendor is absent')
-        else:data_ok=run('independent-data',[sys.executable,str(ROOT/'tools/upstream-audit.py'),'--protocol',str(chosen['protocol']),'--output',str(output.parent/'upstream-audit.json')])
+        elif not codec_ok:skip('independent-data','Installed registry must pass before comparing it')
+        else:data_ok=run('independent-data',[sys.executable,str(ROOT/'tools/audit-loaded.py'),'--compare-loaded',str(ROOT/'data/palettes.loaded.json'),'--output',str(output.parent/'upstream-audit.json')],env)
         nv=re.search(r'v(\d+)\.',report['tools']['node'] or '')
         if a.source_only:skip('real-network-e2e','source-only mode')
         elif not (unit and rust_ok and codec_ok and data_ok):skip('real-network-e2e','Rust/codec/data prerequisites did not all pass')
-        elif not nv or int(nv[1])<24:skip('real-network-e2e','Node.js >=24 required for the pinned client')
+        elif not node_ok or not nv or int(nv[1])<24:skip('real-network-e2e','Node.js >=24 required for the pinned client')
         else:
             dependencies=(ROOT/'node_modules/bedrock-protocol').is_dir()
-            if not dependencies and a.install_deps:dependencies=run('client-dependencies',['bash',str(ROOT/'tools/node-install.sh')])
+            if not dependencies and a.install_deps:dependencies=run('client-dependencies',['bash',str(ROOT/'tools/node-install.sh')],runtime_env)
             if not dependencies:skip('real-network-e2e','Client dependencies absent; use --install-deps')
-            else:client_ok=run('real-network-e2e',['bash',str(ROOT/'tools/e2e.sh'),'--version',chosen['version'],'--scenario','creative'],timeout=1800)
+            else:client_ok=run('real-network-e2e',['bash',str(ROOT/'tools/e2e.sh'),'--version',chosen['version'],'--scenario','creative'],runtime_env,timeout=1800)
     report['full_network_gate_passed']=bool(unit and rust_ok and codec_ok and data_ok and client_ok)
     report['standalone_passed']=unit
     report['note']='A passed headless E2E is not proof of graphics, UI or an official-client playtest.'

@@ -90,7 +90,9 @@ final class Server {
             $nonce=Binary::readStr($frame,$o,64);$x=Binary::readI32($frame,$o);$y=Binary::readI32($frame,$o);$z=Binary::readI32($frame,$o);
             $id=ord(Binary::take($frame,$o,1));$previous=ord(Binary::take($frame,$o,1));
             if($o!==strlen($frame)){throw new \UnexpectedValueException('Edit response trailing bytes');}
-            $this->chunkCache=[];
+            // Serialized chunks are keyed by palette AND complete content hash.
+            // Old entries cannot represent changed bytes, so retain the bounded
+            // cache for other columns instead of throwing it away on every edit.
             foreach($this->sessions as $other){
                 try{$other->blockChanged($x,$y,$z,$id);}catch(\Throwable $e){$other->close('Block encoding failed: '.$e->getMessage());}
             }

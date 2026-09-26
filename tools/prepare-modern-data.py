@@ -10,6 +10,7 @@ import sys
 import tempfile
 import urllib.request
 import urllib.parse
+from lib.node_runtime import ensure_node, activated_env
 
 ROOT = Path(__file__).resolve().parents[1]
 LIMIT = 16 * 1024 * 1024
@@ -30,9 +31,10 @@ def main():
         if 2193 not in json.loads(config.read_text()).get('protocols', []): return 0
     elif args.protocol != 2193:
         p.error('Only 2193 (26.50/26.51) is implemented, not 12193')
-    subprocess.run(['node', '-e', 'if(Number(process.versions.node.split(".")[0])<24)throw Error("2193 requires Node >=24")'], check=True)
+    node = ensure_node(ROOT)
+    runtime_env = activated_env(node)
     if not (ROOT/'node_modules/bedrock-protocol').is_dir():
-        subprocess.run(['bash', str(ROOT/'tools/node-install.sh')], cwd=ROOT, check=True)
+        subprocess.run(['bash', str(ROOT/'tools/node-install.sh')], cwd=ROOT, env=runtime_env, check=True)
     spec_path = ROOT/'resources/modern/2193.sources.json'
     spec = json.loads(spec_path.read_text())
     dest = ROOT/'.runtime/bedrock/2193'
@@ -57,7 +59,7 @@ def main():
         print('Fetched verified 2193 input:', name, flush=True)
     with tempfile.TemporaryDirectory(dir=dest, prefix='import-') as temp:
         output = Path(temp)
-        subprocess.run(['node', str(ROOT/'tools/import-2193.cjs'), str(source), str(output)], cwd=ROOT, check=True)
+        subprocess.run([str(node), str(ROOT/'tools/import-2193.cjs'), str(source), str(output)], cwd=ROOT, env=runtime_env, check=True)
         outputs = {f.name:{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in output.iterdir() if f.is_file()}
         receipt={'schema':1,'protocol':2193,'source_manifest_sha256':hashlib.sha256(spec_path.read_bytes()).hexdigest(),'outputs':outputs}
         for f in output.iterdir(): os.replace(f,dest/f.name)
