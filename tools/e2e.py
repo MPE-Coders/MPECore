@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import signal
 import socket
 import subprocess
@@ -20,6 +21,8 @@ parser.add_argument('--timeout', type=int, default=120)
 a=parser.parse_args()
 if not 10 <= a.timeout <= 300:
     parser.error('--timeout must be 10..300 seconds')
+if a.version=='12193': parser.error('26.51 uses protocol 2193, not 12193')
+if a.version.startswith('26.'): a.version='1.'+a.version
 catalog=json.loads((ROOT/'resources/protocol-catalog.json').read_text())
 profile=next((p for p in catalog if a.version in [p['version'],str(p['protocol'])]),None)
 if profile is None or profile.get('server_status')=='blocked-unverified-data':
@@ -63,7 +66,16 @@ with tempfile.TemporaryDirectory(prefix='mpe-e2e-') as temp:
                 raise RuntimeError('Unexpected server/report; refusing a false positive')
             print('PASS isolated real Bedrock scenario:',profile['version'],a.scenario)
     except Exception as e:
-        print('E2E FAILED:',e,file=sys.stderr);sys.exit(1)
+        print('E2E FAILED:',e,file=sys.stderr)
+        # Print bounded diagnostics from this isolated OFFLINE instance, not the
+        # user's production server, raw packets, credentials or authentication cache.
+        logfile=reportdir/'server.log'
+        if logfile.exists():
+            tail=logfile.read_bytes()[-32768:].decode('utf-8',errors='replace')
+            tail=re.sub(r'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+','[JWT REDACTED]',tail)
+            tail=re.sub(r'\x1b\[[0-9;]*m','',tail)
+            print('--- isolated server log tail ---\n'+tail,file=sys.stderr)
+        sys.exit(1)
     finally:
         if server and server.poll() is None:
             os.killpg(server.pid,signal.SIGTERM)
