@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "checked_at": "2026-09-26",
+  "packages": {
+    "nethergamesmc/bedrock-data": {"repository": "https://github.com/NetherGamesMC/BedrockData", "reference": "b5fd03f4bcc790abe3d0dcb31151566ca29d42cb"},
+    "nethergamesmc/bedrock-protocol": {"repository": "https://github.com/NetherGamesMC/BedrockProtocol", "reference": "aae6ba55aa75b2c188aade6cadca5fb6d2633d33"}
+  },
+  "official_reference": "https://mojang.github.io/bedrock-protocol-docs/",
+  "official_landing_page": {"version": "1.26.60-beta.28", "protocol": 2216, "channel": "beta", "supported": false},
+  "policy": "Exact source references and explicit per-profile assets. No nearest-version fallback; no automatic promotion from documented to supported."
+}

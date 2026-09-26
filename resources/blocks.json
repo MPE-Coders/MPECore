@@ -1,0 +1,203 @@
+[
+  {
+    "id": 0,
+    "name": "air",
+    "variants": [
+      {
+        "name": "minecraft:air",
+        "states": {}
+      }
+    ],
+    "item_names": [
+      "minecraft:air"
+    ],
+    "item_meta": 0
+  },
+  {
+    "id": 1,
+    "name": "grass",
+    "variants": [
+      {
+        "name": "minecraft:grass",
+        "states": {}
+      },
+      {
+        "name": "minecraft:grass_block",
+        "states": {}
+      }
+    ],
+    "item_names": [
+      "minecraft:grass",
+      "minecraft:grass_block"
+    ],
+    "item_meta": 0
+  },
+  {
+    "id": 2,
+    "name": "stone",
+    "variants": [
+      {
+        "name": "minecraft:stone",
+        "states": {}
+      },
+      {
+        "name": "minecraft:stone",
+        "states": {
+          "stone_type": [
+            8,
+            "stone"
+          ]
+        }
+      }
+    ],
+    "item_names": [
+      "minecraft:stone"
+    ],
+    "item_meta": 0
+  },
+  {
+    "id": 3,
+    "name": "cobblestone",
+    "variants": [
+      {
+        "name": "minecraft:cobblestone",
+        "states": {}
+      }
+    ],
+    "item_names": [
+      "minecraft:cobblestone"
+    ],
+    "item_meta": 0
+  },
+  {
+    "id": 4,
+    "name": "dirt",
+    "variants": [
+      {
+        "name": "minecraft:dirt",
+        "states": {}
+      },
+      {
+        "name": "minecraft:dirt",
+        "states": {
+          "dirt_type": [
+            8,
+            "normal"
+          ]
+        }
+      }
+    ],
+    "item_names": [
+      "minecraft:dirt"
+    ],
+    "item_meta": 0
+  },
+  {
+    "id": 5,
+    "name": "glass",
+    "variants": [
+      {
+        "name": "minecraft:glass",
+        "states": {}
+      }
+    ],
+    "item_names": [
+      "minecraft:glass"
+    ],
+    "item_meta": 0
+  },
+  {
+    "id": 6,
+    "name": "oak_planks",
+    "variants": [
+      {
+        "name": "minecraft:oak_planks",
+        "states": {}
+      },
+      {
+        "name": "minecraft:planks",
+        "states": {
+          "wood_type": [
+            8,
+            "oak"
+          ]
+        }
+      }
+    ],
+    "item_names": [
+      "minecraft:oak_planks",
+      "minecraft:planks"
+    ],
+    "item_meta": 0
+  },
+  {
+    "id": 7,
+    "name": "diamond_block",
+    "variants": [
+      {
+        "name": "minecraft:diamond_block",
+        "states": {}
+      }
+    ],
+    "item_names": [
+      "minecraft:diamond_block"
+    ],
+    "item_meta": 0
+  },
+  {
+    "id": 8,
+    "name": "gold_block",
+    "variants": [
+      {
+        "name": "minecraft:gold_block",
+        "states": {}
+      }
+    ],
+    "item_names": [
+      "minecraft:gold_block"
+    ],
+    "item_meta": 0
+  },
+  {
+    "id": 9,
+    "name": "iron_block",
+    "variants": [
+      {
+        "name": "minecraft:iron_block",
+        "states": {}
+      }
+    ],
+    "item_names": [
+      "minecraft:iron_block"
+    ],
+    "item_meta": 0
+  },
+  {
+    "id": 10,
+    "name": "emerald_block",
+    "variants": [
+      {
+        "name": "minecraft:emerald_block",
+        "states": {}
+      }
+    ],
+    "item_names": [
+      "minecraft:emerald_block"
+    ],
+    "item_meta": 0
+  },
+  {
+    "id": 11,
+    "name": "obsidian",
+    "variants": [
+      {
+        "name": "minecraft:obsidian",
+        "states": {}
+      }
+    ],
+    "item_names": [
+      "minecraft:obsidian"
+    ],
+    "item_meta": 0
+  }
+]
