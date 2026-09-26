@@ -8,5 +8,5 @@
   "data_reference":"a8a4341d7763d6eb8547cff3ca46b4153d60163d",
   "codec_reference":"aae6ba55aa75b2c188aade6cadca5fb6d2633d33",
   "data_status":"pinned-cloudburst-2193","provenance":"resources/modern/2193.sources.json",
-  "notes":"26.50/26.51 use wire protocol 2193, not 12193. Full ordered palette and item registry from pinned Cloudburst/Pumpkin data. Flat Creative gameplay only; server-defined plains biome id 1."
+  "notes":"26.50/26.51 use wire protocol 2193, not 12193. Full ordered palette and item registry from pinned Cloudburst/Pumpkin data. Flat Creative gameplay only; plains chunk biome ID 1 is separate from vanilla definition ID 65535. Full 89-entry vanilla biome definitions are imported."
 }

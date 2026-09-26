@@ -54,7 +54,22 @@ def modern(loaded):
         value=item.get('runtime_id')
         if not name.startswith('minecraft:') or type(value) is not int or not -32768<=value<=32767 or value in ids or type(item.get('component_based')) is not bool:raise DataError('Invalid 2193 item registry')
         ids.add(value)
-    return {'protocol':2193,'states':count,'items':len(items),'canonical_runtime_map':matches,'sha256':digest,'php_comparison':True,'legacy_metadata':None,'biomes':'plains-only'}
+    # Independently compare every generated biome to the pinned source. The
+    # Cloudburst null ID is native-registration 0xffff, NOT plains chunk ID 1.
+    source_biomes=json.loads((root/'source/stripped_biome_definitions.json').read_text())
+    biome_definitions=json.loads((root/profile['biomes']).read_text())
+    if set(biome_definitions)!=set(source_biomes) or 'minecraft:plains' not in biome_definitions:
+        raise DataError('Missing or added version-specific biome definitions')
+    for name,entry in source_biomes.items():
+        if entry.get('id') is not None or entry.get('chunkGenData') is not None:
+            raise DataError('Unexpected non-vanilla biome input')
+        expected={**entry,'id':65535,'mapWaterColour':entry['mapWaterColor']}
+        del expected['mapWaterColor']
+        if biome_definitions[name]!=expected:
+            raise DataError('2193 biome semantic mismatch: '+name)
+    return {'protocol':2193,'states':count,'items':len(items),'canonical_runtime_map':matches,'sha256':digest,'php_comparison':True,'legacy_metadata':None,
+            'biomes':'vanilla-definitions','biome_definition_count':len(biome_definitions),'vanilla_registration_id':65535,'flat_chunk_biome_id':1}
+
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)

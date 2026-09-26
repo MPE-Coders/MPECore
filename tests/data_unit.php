@@ -66,3 +66,11 @@ test('Minecraft violation diagnostics never echo client text or tokens',function
     check(str_contains($s,'packet=0xb'));check(!str_contains($s,'secret'));check(!str_contains($s,"\n"));
     check(str_contains($s,hash('sha256',$msg)));
 });
+test('2193 biome guard rejects the old hash-consistent one-entry/id=1 registry',function(){
+    rejects(fn()=>\mpe\data\ModernData::biomes(['minecraft:plains'=>['id'=>1]]));
+    $fixture=['minecraft:plains'=>['id'=>65535]];
+    for($i=1;$i<89;$i++){$fixture['minecraft:fixture_'.$i]=['id'=>65535];}
+    \mpe\data\ModernData::biomes($fixture);
+    $fixture['minecraft:plains']['id']=1;rejects(fn()=>\mpe\data\ModernData::biomes($fixture));
+    $fixture['minecraft:plains']['id']='65535';rejects(fn()=>\mpe\data\ModernData::biomes($fixture));
+});

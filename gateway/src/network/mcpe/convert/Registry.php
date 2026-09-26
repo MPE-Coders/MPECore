@@ -35,6 +35,7 @@ final class Registry {
             $this->biomes=P\BiomeDefinitionListPacket::createLegacy(new T\CacheableNbt($serializer->read(file_get_contents($profile->asset($assetRoot,'biomes')))->mustGetCompoundTag()));
         }else{
             $entries=[];$data=json_decode(file_get_contents($profile->asset($assetRoot,'biomes')),true,512,JSON_THROW_ON_ERROR);
+            if($profile->id===2193){\mpe\data\ModernData::biomes($data);}
             foreach($data as $name=>$v){
                 $c=$v['mapWaterColour'];
                 $entries[]=new BiomeDefinitionEntry($name,$v['id'],$v['temperature'],$v['downfall'],$v['redSporeDensity'],$v['blueSporeDensity'],$v['ashDensity'],$v['whiteAshDensity'],$v['foliageSnow'],$v['depth'],$v['scale'],new Color($c['r'],$c['g'],$c['b'],$c['a']),$v['rain'],($v['tags']??[])!==[]?$v['tags']:null);

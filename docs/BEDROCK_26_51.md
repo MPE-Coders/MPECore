@@ -32,7 +32,8 @@ dump. See resources/modern/2193.sources.json for paths, sizes and Git blob hashe
 Generated assets live in .runtime/bedrock/2193, with a SHA-256 receipt.
 PHP and an independent Python NBT parser verify the loaded ordered palette.
 
-The current world is flat Creative with server-defined plains biome ID 1.
+The current world is flat Creative with vanilla plains chunk biome ID 1. The complete 89-entry vanilla biome
+definition registry uses wire ID 65535, not chunk ID 1.
 Only the existing canonical block/interaction set is implemented; an imported
 full item registry is not implementation of all Minecraft items or mechanics.
 Survival, vehicles, arbitrary crafting and production hardening are not added.

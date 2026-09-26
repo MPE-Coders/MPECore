@@ -5,13 +5,17 @@ const JIGSAW_KEYS=['processors','template_pools','jigsaws','structure_sets']
 class WorldStartGuard {
   constructor(protocol){
     if(!Number.isInteger(protocol)||protocol<0)throw Error('Invalid protocol')
-    this.protocol=protocol;this.index=0;this.started=false;this.seen={}
+    this.protocol=protocol;this.index=0;this.started=false;this.seen={};this.biomes=null
     this.required=[]
     if(protocol>=712)this.required.push('jigsaw_structure_data')
     if(protocol>=924)this.required.push('voxel_shapes')
   }
   accept(name,params){
     const index=this.index++
+    if(name==='biome_definition_list'&&this.protocol>=827){
+      if(this.biomes)throw Error('Duplicate biome registry')
+      this.biomes={index,...require('./biomes.cjs').inspectVanillaBiomes(params,this.protocol)}
+    }
     if(name==='jigsaw_structure_data'||name==='voxel_shapes'){
       if(!this.required.includes(name))throw Error(`Unexpected ${name} for protocol ${this.protocol}`)
       if(this.started)throw Error(`${name} arrived after StartGame`)
@@ -47,7 +51,7 @@ class WorldStartGuard {
   }
 }
 function validateWorldStartWire(packet,serializer){
-  if(!['jigsaw_structure_data','voxel_shapes','start_game'].includes(packet.data?.name))return
+  if(!['jigsaw_structure_data','voxel_shapes','start_game','biome_definition_list'].includes(packet.data?.name))return
   // The upstream NBT reader can tolerate a missing final TAG_End. Require the
   // original complete packet to match re-encoding, instead of trusting parse success.
   if(!Buffer.isBuffer(packet.fullBuffer)||!packet.fullBuffer.equals(serializer.createPacketBuffer(packet.data))){
@@ -62,6 +66,7 @@ function attachWorldStartGuard(client,inbox,protocol){
       validateWorldStartWire(packet,client.serializer)
       const proof=guard.accept(packet.data.name,packet.data.params)
       if(proof)inbox.put('world_start_ready',proof)
+      if(packet.data.name==='biome_definition_list'&&guard.biomes)inbox.put('world_biomes_ready',guard.biomes)
     }catch(error){inbox.fail(error);client.close()}
   })
   return guard

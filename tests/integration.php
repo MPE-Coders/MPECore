@@ -71,7 +71,7 @@ try{
                     );
                 }
                 $wire=PacketCodec::encode($packet,$id);
-                if(in_array($class,$expectedStartup,true)){
+                if(in_array($class,$expectedStartup,true)||($packet instanceof P\BiomeDefinitionListPacket && $id>=827)){
                     $startupCorpus[$id]['packets'][]=['wire'=>base64_encode($wire)];
                 }
 
@@ -112,6 +112,14 @@ try{
                 }
                 if($copy instanceof P\VoxelShapesPacket && ($copy->getShapes()!==[]||$copy->getNameMap()!==[]||($id>=944&&$copy->getCustomShapeCount()!==0))){
                     throw new RuntimeException('Unexpected custom shapes in flat-world startup data');
+                }
+                if($copy instanceof P\BiomeDefinitionListPacket && $id>=827){
+                    $biomes=$copy->buildDefinitionsFromData();
+                    if($id===2193 && count($biomes)!==89){throw new RuntimeException('Incomplete 2193 biome definitions');}
+                    foreach($biomes as $biome){
+                        if($biome->getId()!==65535){throw new RuntimeException('Invalid vanilla biome registration ID');}
+                    }
+                    echo "PASS vanilla biome wire IDs profile $id: ".count($biomes)." entries, id=65535\n";
                 }
                 $count++;
             } catch (Throwable $e) {

@@ -20,6 +20,14 @@ for(const profile of source.profiles){
     assert.throws(()=>parseExact(Buffer.concat([bytes,Buffer.from([0])])),`Accepted trailing data in ${data.name}`)
   }
   assert(guard.started,'Startup corpus must contain StartGame')
+  if(profile.protocol>=827){
+    assert(guard.biomes,'No semantic biome proof in the actual startup corpus')
+    const bad=structuredClone(decoded.find(p=>p.name==='biome_definition_list').params)
+    bad.biome_definitions[0].biome_id=1
+    assert.throws(()=>require('../test-client/lib/biomes.cjs').inspectVanillaBiomes(bad,profile.protocol),/registration ID/)
+    console.log(`PASS actual vanilla biome wire ${profile.protocol}: ${guard.biomes.definitions} definitions; rejects chunk ID as registration ID`)
+  }
+
   for(const name of guard.required){
     const missing=new WorldStartGuard(profile.protocol)
     assert.throws(()=>{for(const p of decoded.filter(p=>p.name!==name))missing.accept(p.name,p.params)},/StartGame received before/)

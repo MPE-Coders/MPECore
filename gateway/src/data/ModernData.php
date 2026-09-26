@@ -18,6 +18,17 @@ final class ModernData {
             'items'=>'required_item_list-2193.json','entity_identifiers'=>'entity_identifiers-2193.nbt','biomes'=>'biome_definitions-2193.json'];
         foreach($names as $key=>$name){if(($p[$key]??null)!==$name){throw new \UnexpectedValueException('Wrong 2193 asset: '.$key);}}
     }
+    /** Semantic guard also rejects a stale, hash-consistent bundle made by the old importer. */
+    public static function biomes(array $definitions): void {
+        if(count($definitions)!==89 || !isset($definitions['minecraft:plains'])){
+            throw new \UnexpectedValueException('2193 requires all 89 pinned vanilla biome definitions; regenerate the modern bundle');
+        }
+        foreach($definitions as $name=>$entry){
+            if(!is_string($name)||!str_starts_with($name,'minecraft:')||!is_array($entry)||($entry['id']??null)!==65535){
+                throw new \UnexpectedValueException('Vanilla biome registration ID must be 65535; chunk biome IDs are not registration IDs');
+            }
+        }
+    }
     public static function fingerprints(string $root,array $profile): array {
         self::validateProfile($profile);
         $dir=self::root($root);$file=$dir.'/bundle.json';

@@ -215,6 +215,10 @@
     "gateway/src/network/mcpe/WorldStartData.php",
     "test-client/test/world-start.test.cjs",
     "tools/world-start-doctor.cjs",
-    "docs/STARTGAME_PREREQUISITES.md"
+    "docs/STARTGAME_PREREQUISITES.md",
+    "test-client/lib/biomes.cjs",
+    "tools/lib/biomes2193.cjs",
+    "test-client/test/biomes.test.cjs",
+    "docs/BIOME_REGISTRATION.md"
   ]
 }

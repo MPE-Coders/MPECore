@@ -13,6 +13,7 @@ async function scenario(client,inbox,o,report){
   const prerequisite=await inbox.expect('world_start_ready',()=>true,o.timeout)
   check('world-start-data-before-start-game',prerequisite)
   check('start-game',{runtime:String(start.runtime_entity_id),protocol:o.protocol})
+  if(o.protocol>=827)check('vanilla-biome-registration',await inbox.expect('world_biomes_ready',()=>true,o.timeout))
   await inbox.expect('spawn',()=>true,o.timeout);check('spawn-and-initialization',{})
   const chunk=await inbox.expect('level_chunk',p=>p.sub_chunk_count>0&&Buffer.isBuffer(p.payload),o.timeout)
   const decoded=decodeColumn(chunk.payload,chunk.sub_chunk_count)

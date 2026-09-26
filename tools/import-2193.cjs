@@ -44,12 +44,8 @@ async function main(){
   const actors=await parseCompound(entities,'Entity identifiers')
   if(actors.value.idlist?.type!=='list')throw Error('Entity registry lacks idlist')
   write('entity_identifiers-2193.nbt',nbt.writeUncompressed(actors,'littleVarint'))
-  const biomes=JSON.parse(read('stripped_biome_definitions.json'))
-  const plains=biomes['minecraft:plains']
-  if(!plains?.mapWaterColor||typeof plains.temperature!=='number')throw Error('Missing plains definition')
-  // The flat generator emits ONLY plains id 1. This is a server-defined subset,
-  // not a complete vanilla biome registry or support for client-side generation.
-  json('biome_definitions-2193.json',{'minecraft:plains':{...plains,id:1,mapWaterColour:plains.mapWaterColor}})
-  console.log(JSON.stringify({protocol:2193,palette_states:count,items:raw.length,entity_count:actors.value.idlist.value.value.length,biomes:'plains-only'}))
+  const biomes=require('./lib/biomes2193.cjs').convertVanillaBiomes(JSON.parse(read('stripped_biome_definitions.json')))
+  json('biome_definitions-2193.json',biomes)
+  console.log(JSON.stringify({protocol:2193,palette_states:count,items:raw.length,entity_count:actors.value.idlist.value.value.length,biomes:'vanilla-definitions',biome_definitions:Object.keys(biomes).length,flat_world_biome:'plains'}))
 }
 main().catch(e=>{console.error('2193 IMPORT FAILED:',e.stack);process.exitCode=1})
