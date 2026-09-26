@@ -24,6 +24,16 @@ def main():
         loaded=json.loads(a.compare_loaded.read_text()) if a.compare_loaded else None
         data=Source(a.data_root,a.data_ref); codec=Source(a.codec_root,a.codec_ref)
         info=protocol_constants(codec.read('src/ProtocolInfo.php').decode())
+        # Explicit alternate --data-root is an audit input (e.g. a synthetic test
+        # fixture), not an installed/runtime verification claim.
+        def read_asset(profile,key):
+            if (profile['protocol']==1001 and key=='block_meta' and
+                a.data_root.resolve()==(ROOT/'vendor/nethergamesmc/bedrock-data').resolve()):
+                import importlib.util
+                spec=importlib.util.spec_from_file_location('native_metadata',ROOT/'tools/prepare-native-metadata.py')
+                correction=importlib.util.module_from_spec(spec);spec.loader.exec_module(correction)
+                return correction.verify((ROOT/'.runtime/bedrock/1001'/correction.NAME).read_bytes())
+            return data.read(profile[key])
         files=data.files()
         report={'schema':1,'success':False,'official_client_tested':False,
                 'data_reference':data.reference, 'codec_reference':codec.reference,
@@ -39,7 +49,7 @@ def main():
                 profile=json.loads((ROOT/f'resources/protocols/{protocol}.json').read_text())
                 if protocol not in info['accepted_protocols'] or profile.get('data_status')!='explicit-nethergames-aliases':
                     raise DataError(f'No supported native codec/data pair for {protocol}')
-                metadata=json.loads(data.read(profile['block_meta']))
+                metadata=json.loads(read_asset(profile,'block_meta'))
                 summary=inspect_palette(data.read(profile['block_palette']),metadata,definitions,a.export_catalog)
                 items=json.loads(data.read(profile['items']))
                 if not isinstance(items,dict) or not items:
@@ -53,7 +63,7 @@ def main():
                     ids.add(entry['runtime_id'])
                 assets={}
                 for key in ['block_palette','block_meta','items','entity_identifiers','biomes']:
-                    payload=data.read(profile[key])
+                    payload=read_asset(profile,key)
                     assets[key]={'file':profile[key],'bytes':len(payload),'sha256':hashlib.sha256(payload).hexdigest()}
                 if loaded is not None:
                     entry=loaded.get(str(protocol))

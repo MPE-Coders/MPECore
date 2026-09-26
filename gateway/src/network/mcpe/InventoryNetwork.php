@@ -32,7 +32,7 @@ final class InventoryNetwork {
     public static function contents(Registry $r, PlayerInventory $inventory, int $windowId = I\ContainerIds::INVENTORY): array {
         $empty = self::wrap($r, new Stack());
         return [
-            P\InventoryContentPacket::create($windowId, array_map(fn(Stack $s) => self::wrap($r,$s),$inventory->contents()), new I\FullContainerName(I\ContainerUIIds::INVENTORY),0,$empty),
+            P\InventoryContentPacket::create($windowId, array_map(fn(Stack $s) => self::wrap($r,$s),$inventory->contents()), new I\FullContainerName(I\ContainerUIIds::COMBINED_HOTBAR_AND_INVENTORY),0,$empty),
             P\InventorySlotPacket::create(I\ContainerIds::UI,0,new I\FullContainerName(I\ContainerUIIds::CURSOR),0,$empty,self::wrap($r,$inventory->cursor())),
         ];
     }
@@ -59,15 +59,26 @@ final class InventoryNetwork {
         }
         return $result;
     }
-    public static function response(int $requestId, ?array $changes): P\ItemStackResponsePacket {
+    public static function response(int $requestId, ?array $changes, array $actions=[]): P\ItemStackResponsePacket {
         if ($changes === null) { return P\ItemStackResponsePacket::create([new A\ItemStackResponse(A\ItemStackResponse::RESULT_ERROR,$requestId)]); }
-        $groups=[];
+        $groups=[];$references=[];
+        foreach($actions as $action){
+            foreach(['source','destination'] as $ref){
+                if(isset($action[$ref])){
+                    [$container,$slot]=$action[$ref];
+                    $key=PlayerInventory::key($container,$slot);
+                    $references[$key][$container.':'.$slot]=[$container,$slot];
+                }
+            }
+        }
         foreach ($changes as $key=>$s) {
             [$container,$slot] = match ($key) {
                 'cursor' => [I\ContainerUIIds::CURSOR,0], 'output' => [I\ContainerUIIds::CREATED_OUTPUT,50],
                 default => [I\ContainerUIIds::COMBINED_HOTBAR_AND_INVENTORY,(int)substr($key,2)],
             };
-            $groups[$container][] = new A\ItemStackResponseSlotInfo($slot,$slot,$s->count,$s->networkId,'','',0);
+            foreach($references[$key]??[[$container,$slot]] as [$container,$slot]){
+                $groups[$container][] = new A\ItemStackResponseSlotInfo($slot,$slot,$s->count,$s->networkId,'','',0);
+            }
         }
         $infos=[];
         foreach ($groups as $id=>$slots) { $infos[]=new A\ItemStackResponseContainerInfo(new I\FullContainerName($id),$slots); }

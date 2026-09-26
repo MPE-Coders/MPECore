@@ -40,13 +40,18 @@ final class AssetIntegrity {
 
     public function profile(array $profile, string $assetRoot): array {
         ProfileGuard::validate($profile);
+        if($profile['protocol']===2193){
+            self::references(['nethergamesmc/bedrock-protocol'=>$profile['codec_reference']],$this->references);
+            return ModernData::fingerprints($this->root,$profile);
+        }
         self::references([
             'nethergamesmc/bedrock-data'=>$profile['data_reference'],
             'nethergamesmc/bedrock-protocol'=>$profile['codec_reference']
         ], $this->references);
         $result = [];
         foreach (ProfileGuard::ASSETS as $key) {
-            $name = $profile[$key]; $path = $assetRoot.'/'.$name;
+            $name = $profile[$key]; $path = $profile['protocol']===1001 && $key==='block_meta'
+                ? NativeMetadata::path($this->root) : $assetRoot.'/'.$name;
             if (!isset($this->checked[$name])) {
                 $size = is_file($path) ? filesize($path) : false;
                 if ($size === false || $size === 0 || $size > 64 * 1024 * 1024) {

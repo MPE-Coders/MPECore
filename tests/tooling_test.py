@@ -45,12 +45,22 @@ class ToolingTests(unittest.TestCase):
     def test_explicit_modern_profile_and_invalid_port(self):
         with tempfile.TemporaryDirectory() as t:
             script = self.setup_tree(Path(t))
-            proc = subprocess.run([sys.executable, str(script), '--version', '1.26.51', '--loopback'], capture_output=True, text=True)
-            self.assertNotEqual(proc.returncode, 0)
-            self.assertIn('No verified version-specific', proc.stderr)
-            self.assertFalse(list(Path(t).glob('server.playtest-*.json')))
+            for version in ['1.26.51','26.51','2193']:
+                proc = subprocess.run([sys.executable, str(script), '--version', version, '--loopback'], capture_output=True, text=True)
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                config=json.loads(Path(proc.stdout.strip()).read_text())
+                self.assertEqual(config['protocols'],[2193])
+                self.assertTrue(config['experimental-codecs'])
+                self.assertTrue(config['online-mode'])
+                self.assertTrue(config['encryption'])
             invalid = subprocess.run([sys.executable, str(script), '--port', '65536'], capture_output=True)
             self.assertNotEqual(invalid.returncode, 0)
+            wrong = subprocess.run([sys.executable, str(script), '--version', '12193'], capture_output=True, text=True)
+            self.assertNotEqual(wrong.returncode, 0)
+            self.assertIn('2193, not 12193', wrong.stderr)
+            for version in ['2168','2169']:
+                blocked=subprocess.run([sys.executable,str(script),'--version',version],capture_output=True)
+                self.assertNotEqual(blocked.returncode,0)
 
     def test_report_separates_reused_session_ids_and_not_official_identity(self):
         with tempfile.TemporaryDirectory() as t:

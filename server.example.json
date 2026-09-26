@@ -9,14 +9,16 @@
   "max-view-distance": 6,
   "chunks-per-tick": 4,
   "protocols": [
-    1001
+    975,
+    1001,
+    2193
   ],
-  "advertise-protocol": 1001,
+  "advertise-protocol": 2193,
   "debug": false,
   "timezone": "Europe/Moscow",
   "auth-timeout": 25,
   "packet-dump": false,
-  "experimental-codecs": false,
+  "experimental-codecs": true,
   "test-mode": false,
   "operators": [],
   "world-directory": "data/world",

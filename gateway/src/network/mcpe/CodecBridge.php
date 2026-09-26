@@ -10,7 +10,7 @@ final class CodecBridge {
     private string $buffer='';
     public function __construct(string $root){
         if(!is_dir($root.'/node_modules/bedrock-protocol')){throw new \RuntimeException('Modern protocols require ./tools/node-install.sh');}
-        $this->worker=new ChildProcess(['node',$root.'/codec/worker.cjs'],$root);
+        $this->worker=new ChildProcess([getenv('MPE_NODE')?:'node',$root.'/codec/worker.cjs'],$root);
         $this->rpc(['method'=>'capabilities'],30.0);
     }
     public static function enable(string $root):void{self::$instance??=new self($root);}

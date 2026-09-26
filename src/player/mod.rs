@@ -1,3 +1,4 @@
+pub mod physics;
 use crate::math::Vector3;
 use std::time::Instant;
 pub struct Player {
@@ -12,14 +13,15 @@ pub struct Player {
     pub last_client_tick: Option<u64>,
     pub last_move: Instant,
     pub initialized: bool,
+    pub vertical_velocity: f32,
 }
 impl Player {
     pub fn new(sid: u64, runtime_id: u64, name: String, uuid: String, authenticated: bool, position: Vector3) -> Self {
         Self { sid, runtime_id, name, uuid, authenticated, position, pitch:0.0, yaw:0.0,
-            last_client_tick: None, last_move: Instant::now(), initialized:false }
+            last_client_tick: None, last_move: Instant::now(), initialized:false, vertical_velocity:0.0 }
     }
     pub fn teleport(&mut self, position: Vector3) {
-        self.position=position; self.last_move=Instant::now();
+        self.position=position; self.last_move=Instant::now(); self.vertical_velocity=0.0;
     }
     /// Creative flight / movement bounds. NOT vanilla physics or a complete anti-cheat.
     pub fn move_to(&mut self, p: Vector3, pitch: f32, yaw: f32, tick: u64) -> bool {

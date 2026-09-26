@@ -156,7 +156,7 @@ test('Canonical mappings are typed, explicit, and reject ambiguous variants',fun
 });
 test('All protocol profiles use explicit safe filenames and separate item/block aliases',function(){
     $root=dirname(__DIR__);$files=glob($root.'/resources/protocols/*.json');same(count($files),31);
-    foreach($files as $f){$raw=json_decode(file_get_contents($f),true);if($raw['protocol']>1001){rejects(fn()=>new \mpe\network\mcpe\convert\ProtocolProfile($f));continue;}$p=new \mpe\network\mcpe\convert\ProtocolProfile($f);foreach(['block_palette','block_meta','items'] as $k){same(basename($p->data[$k]),$p->data[$k]);}}
+    foreach($files as $f){$raw=json_decode(file_get_contents($f),true);if($raw['protocol']>1001&&$raw['protocol']!==2193){rejects(fn()=>new \mpe\network\mcpe\convert\ProtocolProfile($f));continue;}$p=new \mpe\network\mcpe\convert\ProtocolProfile($f);foreach(['block_palette','block_meta','items'] as $k){same(basename($p->data[$k]),$p->data[$k]);}}
     $p=new \mpe\network\mcpe\convert\ProtocolProfile($root.'/resources/protocols/800.json');
     same($p->data['block_palette'],'canonical_block_states-1.21.93.nbt');same($p->data['items'],'required_item_list-1.21.80.json');
 });
@@ -167,7 +167,7 @@ test('Extended chunks preserve contiguous sections and reject holes',function(){
 test('Public test-mode and silently enabled experimental protocols are refused',function(){
     $root=dirname(__DIR__);$file=tempnam(sys_get_temp_dir(),'mpe-config-');$old=getenv('MPE_CONFIG');
     try{putenv('MPE_CONFIG='.$file);file_put_contents($file,json_encode(['test-mode'=>true,'host'=>'0.0.0.0']));rejects(fn()=>\mpe\utils\Config::load($root));
-        file_put_contents($file,json_encode(['protocols'=>[2193],'advertise-protocol'=>2193]));rejects(fn()=>\mpe\utils\Config::load($root));
+        file_put_contents($file,json_encode(['protocols'=>[2193],'advertise-protocol'=>2193,'experimental-codecs'=>false]));rejects(fn()=>\mpe\utils\Config::load($root));
         file_put_contents($file,json_encode(['test-mode'=>true,'host'=>'127.0.0.1']));same(\mpe\utils\Config::load($root)['test-mode'],true);
     }finally{unlink($file);$old===false?putenv('MPE_CONFIG'):putenv('MPE_CONFIG='.$old);}
 });
@@ -253,6 +253,7 @@ test('PHP block change notification dispatches in a real worker AFTER-commit API
         $messages=array_values(array_filter($rows,static fn($m)=>($m['op']??'')==='message'));same($messages[0]['message'],'committed:7:2');
     }finally{$w?->stop();unlink($dir.'/Main.php');unlink($dir.'/plugin.json');rmdir($dir);}
 });
+require __DIR__.'/gameplay_unit.php';
 require __DIR__.'/data_unit.php';
 echo "\n$passed passed; $failed failed. Dependencies/native client integration are separate tests.\n";
 exit($failed===0?0:1);

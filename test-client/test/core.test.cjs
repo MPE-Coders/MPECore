@@ -36,10 +36,10 @@ test('Nonce matcher rejects unrelated, malformed, and wrong-nonce responses',()=
 test('Modern motion adapter changes structure, not coordinates or protocol claim',()=>{const p=motion({x:1,y:65.62,z:2},12,true);const old=adapt('player_auth_input',p,2193,1001);assert.equal(old.input_data.vertical_collision,true);assert.deepEqual(old.position,p.position);assert.equal(old.tick,12n);const round=adapt('player_auth_input',old,1001,2193);assert.deepEqual(round.input_data,['vertical_collision'])})
 test('Modern adapter refuses unsupported inventory and unknown packet semantics',()=>{assert.throws(()=>adapt('player_auth_input',{input_data:['item_interact'],transaction:{}},2193,1001));assert.throws(()=>adapt('not_implemented',{},1001,2193));assert.throws(()=>assertTopLevel('x',{}, {packet_x:['container',[{name:'new_field',type:'bool'}]]}))})
 test('Required-field guard allows explicit optional fields, not missing bools',()=>{assertTopLevel('x',{}, {packet_x:['container',[{name:'optional',type:['option','string']}]]});assertTopLevel('x',{ok:false}, {packet_x:['container',[{name:'ok',type:'bool'}]]})})
-test('A start packet without spawn does not pass connection scenario',async()=>{const i=new Inbox();i.put('start_game',{runtime_entity_id:1n});await assert.rejects(scenario({},i,{scenario:'connect',timeout:10},{checks:[]}),/spawn/)})
+test('A start packet without spawn does not pass connection scenario',async()=>{const i=new Inbox();i.put('world_biomes_ready',{fixture:true});i.put('world_start_ready',{fixture:true});i.put('start_game',{runtime_entity_id:1n});await assert.rejects(scenario({},i,{scenario:'connect',timeout:10},{checks:[]}),/spawn/)})
 test('Full scenario logic with deterministic fake transport; NOT a Bedrock login',async()=>{
   const i=new Inbox(),c=chunk();let position=[0.5,64,0.5],tick=1,id=0
-  i.put('start_game',{runtime_entity_id:1n});i.put('spawn',{});i.put('level_chunk',c)
+  i.put('world_biomes_ready',{fixture:true});i.put('world_start_ready',{fixture:true});i.put('start_game',{runtime_entity_id:1n});i.put('spawn',{});i.put('level_chunk',c)
   const client={queue(name,p){
     if(name==='text')i.put('text',{message:`<Unit> ${p.message}`})
     if(name==='player_auth_input'){position=[p.position.x,p.position.y-1.62,p.position.z];tick++}

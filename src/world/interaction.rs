@@ -24,17 +24,28 @@ impl Interaction {
         let (x,y,z)=self.target().ok_or("Invalid block face/action")?;
         let eye=Vector3::new(feet.x,feet.y+1.62,feet.z);
         let center=Vector3::new(self.x as f32+0.5,self.y as f32+0.5,self.z as f32+0.5);
+        let hit = if self.action == PLACE {
+            let (dx,dy,dz)=match self.face {0=>(0.0,-0.5,0.0),1=>(0.0,0.5,0.0),
+                2=>(0.0,0.0,-0.5),3=>(0.0,0.0,0.5),4=>(-0.5,0.0,0.0),5=>(0.5,0.0,0.0),_=>return Err("Invalid face")};
+            Vector3::new(center.x+dx,center.y+dy,center.z+dz)
+        } else {
+            // Closest point on the full-cube surface for destruction. Do not trace
+            // underground to a centre and mistake adjacent grass for a wall.
+            Vector3::new(eye.x.clamp(self.x as f32,(self.x+1) as f32),
+                eye.y.clamp(self.y as f32,(self.y+1) as f32),
+                eye.z.clamp(self.z as f32,(self.z+1) as f32))
+        };
         // A generous creative reach, with server coordinates (never the client-supplied position).
-        if eye.distance_squared(center)>6.5*6.5 {return Err("Block outside creative reach");}
+        if eye.distance_squared(hit)>6.5*6.5 {return Err("Block outside creative reach");}
         if world.get_block(self.x,self.y,self.z)==AIR {return Err("Clicked block is air");}
         // Check occlusion up to the clicked block, so a client cannot edit through a wall.
-        let distance=eye.distance_squared(center).sqrt();
+        let distance=eye.distance_squared(hit).sqrt();
         let steps=(distance/0.1).ceil().max(1.0) as usize;
         for step in 1..steps {
             let t=step as f32/steps as f32;
-            let bx=(eye.x+(center.x-eye.x)*t).floor() as i32;
-            let by=(eye.y+(center.y-eye.y)*t).floor() as i32;
-            let bz=(eye.z+(center.z-eye.z)*t).floor() as i32;
+            let bx=(eye.x+(hit.x-eye.x)*t).floor() as i32;
+            let by=(eye.y+(hit.y-eye.y)*t).floor() as i32;
+            let bz=(eye.z+(hit.z-eye.z)*t).floor() as i32;
             if (bx,by,bz)==(self.x,self.y,self.z) {break;}
             if world.get_block(bx,by,bz)!=AIR {return Err("Clicked block is occluded");}
         }
@@ -65,6 +76,15 @@ impl Interaction {
         assert!(Interaction{x:20,..place}.validate(&w,player,&[player]).is_err());
         assert!(Interaction{x:0,..place}.validate(&w,player,&[player]).is_err());
         assert!(Interaction{face:7,..place}.validate(&w,player,&[player]).is_err());
+    }
+    #[test] fn distant_grass_faces_are_not_occluded_by_adjacent_ground() {
+        let w=World::new();let feet=w.spawn();
+        for (x,z) in [(3,0),(4,0),(5,0),(6,0),(-4,0),(0,-5),(3,3)] {
+            let place=Interaction{action:PLACE,x,y:63,z,face:1,block:2};
+            assert_eq!(place.validate(&w,feet,&[feet]).unwrap(),(x,64,z,2));
+        }
+        let far=Interaction{action:PLACE,x:8,y:63,z:0,face:1,block:2};
+        assert_eq!(far.validate(&w,feet,&[feet]),Err("Block outside creative reach"));
     }
     #[test] fn invalid_coordinates_and_occlusion() {
         let mut w=World::new(); let p=w.spawn();

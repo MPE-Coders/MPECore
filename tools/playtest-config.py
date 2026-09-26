@@ -10,12 +10,16 @@ p.add_argument('--version', default='1.26.30', help='Exact version or protocol f
 p.add_argument('--port', type=int, default=19132)
 p.add_argument('--loopback', action='store_true')
 o = p.parse_args()
+if o.version == '12193':
+    p.error('Bedrock 26.51 uses protocol 2193, not 12193')
+if o.version.startswith('26.'):
+    o.version = '1.' + o.version
 catalog = json.loads(ROOT.joinpath('resources/protocol-catalog.json').read_text())
-v = next((v for v in catalog if o.version in (v['version'], str(v['protocol']))), None)
+v = next((v for v in catalog if o.version in [v['version'], str(v['protocol']), *v.get('aliases', [])]), None)
 if v is None or not 1 <= o.port <= 65535:
     p.error('Version must exist in resources/protocol-catalog.json; port must be 1..65535')
 if v.get('server_status') == 'blocked-unverified-data':
-    p.error('No verified version-specific NetherGames data for this profile. Start with 1.26.30 / 1001; schema presence alone is insufficient.')
+    p.error('Protocol '+str(v['protocol'])+' is intentionally blocked: no verified version-specific data. Use 1.26.30 or 1.26.51; schema presence alone is insufficient.')
 config = json.loads(ROOT.joinpath('server.example.json').read_text())
 config.update({'host': '127.0.0.1' if o.loopback else '0.0.0.0', 'port': o.port,
                'protocols': [v['protocol']], 'advertise-protocol': v['protocol'],

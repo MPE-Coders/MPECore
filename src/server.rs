@@ -86,6 +86,21 @@ impl Server {
                     }
                 }
             },
+            13=>{
+                let sid=d.u64()?;let pos=d.vector()?;let pitch=d.f32()?;let yaw=d.f32()?;let tick=d.u64()?;let flags=d.u8()?;d.finish()?;
+                if flags & !3 != 0 {return Err(io::Error::new(io::ErrorKind::InvalidData,"Invalid physics flags"));}
+                if let Some(p)=self.players.get_mut(&sid).filter(|p|p.initialized) {
+                    if let Some(correct)=crate::player::physics::advance(p,&self.world,pos,pitch,yaw,tick,flags&1!=0,flags&2!=0) {
+                        if p.position.y < -70.0 {
+                            p.teleport(self.world.spawn());
+                            let mut e=Encoder::new(0x8d);e.u64(sid);e.vector(p.position);e.f32(p.pitch);e.f32(p.yaw);e.u64(tick);ipc::write_frame(out,&e.0)?;
+                        } else {
+                            let mut e=Encoder::new(0x8e);e.u64(sid);e.vector(p.position);e.f32(p.pitch);e.f32(p.yaw);e.u64(tick);
+                            e.f32(p.vertical_velocity);e.u8(self.world.on_ground(p.position) as u8);e.u8(correct as u8);ipc::write_frame(out,&e.0)?;
+                        }
+                    }
+                }
+            },
             4=>{
                 let sid=d.u64()?;let x=d.i32()?;let z=d.i32()?;d.finish()?;
                 if let Some(p)=self.players.get(&sid) {

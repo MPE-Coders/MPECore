@@ -53,9 +53,9 @@ final class PlayerInventory {
         [$container, $slot, $stackId] = $ref;
         $key = self::key($container, $slot);
         $value = $slots[$key];
-        $sameRequest = isset($changed[$key]) && $stackId === $requestId;
+        $sameRequest = $stackId < 0 && isset($changed[$key]) && $stackId === -abs($requestId);
         $previousRequest = $stackId < 0 && ($this->lastRequests[$key] ?? null) === $stackId;
-        $createdOutput = $key === 'output' && isset($changed[$key]) && ($stackId === 0 || $stackId === $requestId);
+        $createdOutput = $key === 'output' && isset($changed[$key]) && ($stackId === 0 || $stackId === -abs($requestId));
         if ($stackId !== $value->networkId && !$sameRequest && !$previousRequest && !$createdOutput) {
             throw new \UnexpectedValueException('Stale stack ID');
         }
@@ -63,7 +63,7 @@ final class PlayerInventory {
     }
     /** @return array<string,Stack> changed logical slots; throws without committing on failure. */
     public function request(int $requestId, array $actions, bool $creative): array {
-        if ($requestId >= 0 || $requestId < -2147483648 || count($actions) < 1 || count($actions) > 64) {
+        if ($requestId === 0 || $requestId > 2147483647 || $requestId < -2147483647 || count($actions) < 1 || count($actions) > 64) {
             throw new \UnexpectedValueException('Invalid stack request');
         }
         if (isset($this->completed[$requestId])) { throw new \UnexpectedValueException('Replayed stack request'); }
@@ -106,7 +106,7 @@ final class PlayerInventory {
             if (isset($changed['output'])) { $slots['output'] = new Stack(); }
         } catch (\Throwable $e) { $this->nextId = $nextId; throw $e; }
         $this->slots = $slots;
-        foreach ($changed as $key => $_) { $this->lastRequests[$key] = $requestId; }
+        foreach ($changed as $key => $_) { $this->lastRequests[$key] = -abs($requestId); }
         $this->completed[$requestId] = true;
         if (count($this->completed) > 128) { unset($this->completed[array_key_first($this->completed)]); }
         return array_intersect_key($slots, $changed);

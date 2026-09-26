@@ -17,6 +17,7 @@ final class Config {
         if(!is_array($c['protocols'])||$c['protocols']===[]){throw new \InvalidArgumentException('At least one profile required');}
         foreach($c['protocols'] as $id){if(!is_int($id)||!is_file($root.'/resources/protocols/'.$id.'.json')){throw new \InvalidArgumentException('Missing explicit protocol profile');}}
         if(count(array_unique($c['protocols']))!==count($c['protocols'])||!in_array($c['advertise-protocol'],$c['protocols'],true)){throw new \InvalidArgumentException('Invalid advertised/duplicate profile');}
+        if(in_array(2193,$c['protocols'],true)&&!$c['experimental-codecs']){throw new \InvalidArgumentException('Protocol 2193 requires explicit experimental-codecs=true');}
         if(!is_string($c['server-name'])||strlen($c['server-name'])>128){throw new \InvalidArgumentException('Server name limit');}
         if($c['test-mode'] && $c['host']!=='127.0.0.1'){throw new \InvalidArgumentException('test-mode MUST bind 127.0.0.1, never a public/LAN interface');}
         if(!is_array($c['operators'])){throw new \InvalidArgumentException('operators must be UUID list');}

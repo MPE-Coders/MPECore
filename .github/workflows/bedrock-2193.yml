@@ -1,0 +1,92 @@
+name: Bedrock 26.51 / 2193 integration
+on:
+  push:
+    branches: [main, 'feat/bedrock-26.51']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  modern:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.1'
+      - name: Install tools and locked protocol dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends php-cli php-mbstring python3 curl ca-certificates unzip git
+          mkdir -p ci-results
+          echo "System Node before: $(node --version)"
+          ./tools/node-install.sh
+          echo "System Node after: $(node --version)"
+          test "$(node -p 'process.versions.node.split(".")[0]')" = 22
+          # The installer did not change the runner's Node. Select the local
+          # runtime explicitly for later CI steps (not a user profile edit).
+          python3 tools/node-runtime.py --bin >> "$GITHUB_PATH"
+      - name: Standalone regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./start.sh --unit 2>&1 | tee ci-results/unit.log
+      - name: Verify and import immutable modern data
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/prepare-modern-data.py --protocol 2193 2>&1 | tee ci-results/data-2193.log
+          node tools/schema-diff.cjs | tee ci-results/schema-diff.jsonl
+      - name: Real 2193 packet schemas
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/codec-doctor.cjs --protocol=2193 --out=ci-results/client-2193.json 2>&1 | tee ci-results/schema-2193.log
+      - name: Installed PHP bridge codecs and independent NBT verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path('server.example.json').read_text())
+          c.update({'host':'127.0.0.1','protocols':[2193],'advertise-protocol':2193,'experimental-codecs':True})
+          Path('server.json').write_text(json.dumps(c))
+          PY
+          ./start.sh --doctor 2>&1 | tee ci-results/doctor-2193.log
+          node tools/world-start-doctor.cjs 2>&1 | tee ci-results/world-start-wire.log
+      - name: Build real Rust engine and check IPC
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.85.1 --profile minimal
+          cargo +1.85.1 test --locked 2>&1 | tee ci-results/rust-test.log
+          cargo +1.85.1 build --release --locked 2>&1 | tee ci-results/rust-build.log
+          python3 tests/engine_ipc.py target/release/mpe-core 2>&1 | tee ci-results/engine-ipc.log
+      - name: Actual isolated RakNet client login and Creative actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for version in 1.26.20 1.26.30 1.26.51; do
+            ./tools/e2e.sh --version "$version" --scenario creative 2>&1 | tee "ci-results/e2e-$version.log"
+          done
+          ./tools/e2e.sh --multi 2>&1 | tee ci-results/e2e-multiversion.log
+      - name: Record scope
+        if: always()
+        run: echo 'Data, codecs and loopback headless tests do not verify Microsoft online auth or the official Minecraft client.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bedrock-2193-${{ github.sha }}
+          path: |
+            ci-results/
+            target/release/mpe-core
+            tests/results/
+            data/upstream-audit.json
+            data/world-start-codec.json
+            .runtime/bedrock/1001/block_state_meta_map-1.26.30.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14

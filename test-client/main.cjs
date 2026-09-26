@@ -30,15 +30,18 @@ No Microsoft password is requested by this program; follow the dependency's devi
     if(!o.palette){
       const p=require(`../resources/protocols/${o.protocol}.json`),asset=path.join(ROOT,'vendor/nethergamesmc/bedrock-data',p.block_palette)
       if(p.data_status==='explicit-nethergames-aliases' && fs.existsSync(asset))o.palette=asset
+      if(o.protocol===2193){const modern=path.join(ROOT,'.runtime/bedrock/2193',p.block_palette);if(fs.existsSync(modern))o.palette=modern}
     }
     if(o.palette)o.paletteData=require('./lib/palette.cjs').loadPalette(o.palette)
     else log('No local NBT palette: grass assertion uses server-reported mapping, not independent palette validation')
     if(Number(process.versions.node.split('.')[0])<24)throw Error('Real protocol client requires Node.js >=24 (upstream bedrock-protocol requirement)')
     const {Client}=require('bedrock-protocol')
     inbox=new Inbox()
+    // The guard is attached after construction below, before init/network activity.
     client=new Client({host:o.host,port:o.port,version:o.version,username:o.username,offline:o.offline,
       profilesFolder:o['profiles-folder']||path.join(ROOT,'.client-auth'),delayedInit:true,autoInitPlayer:true,
       transport:'raknet',raknetBackend:'jsp-raknet',useRaknetWorkers:false,connectTimeout:o.timeout,conLog:log})
+    require('./lib/world-start.cjs').attachWorldStartGuard(client,inbox,o.protocol)
     const fatal=e=>{if(!finishing)inbox.fail(e instanceof Error?e:Error(String(e)))}
     client.on('error',fatal);client.on('close',()=>fatal(Error('Connection closed before scenario completed')))
     client.on('kick',p=>fatal(Error(`Kicked: ${p.message||'no reason'}`)))
@@ -54,7 +57,7 @@ No Microsoft password is requested by this program; follow the dependency's devi
     })
     client.on('start_game',()=>{try{client.queue('request_chunk_radius',{chunk_radius:2,max_radius:2})}catch(e){fatal(e)}})
     client.on('network_stack_latency',p=>{if(p.needs_response)client.queue('network_stack_latency',{timestamp:p.timestamp,needs_response:false})})
-    client.once('connect_allowed',()=>client.connect())
+    client.once('connect_allowed',()=>{require('./lib/raknet.cjs').attachRaknet11(client);client.connect()})
     const result=scenario(client,inbox,o,report)
     result.catch(()=>{});client.init();await result
     report.success=true;log('Scenario completed with received evidence')

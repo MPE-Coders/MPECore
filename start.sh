@@ -2,21 +2,24 @@
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
+source "$ROOT/tools/runtime-env.sh"
 MODE="${1:-run}"
 case "$MODE" in
+  --enable-multiversion) shift; exec python3 "$ROOT/tools/configure-multiversion.py" "$@";;
   --audit-data) shift; exec python3 "$ROOT/tools/upstream-audit.py" "$@";;
   --verify) shift; exec python3 "$ROOT/tools/verify.py" "$@";;
   --playtest) shift; exec "$ROOT/tools/playtest.sh" "$@";;
   --check-source) exec python3 "$ROOT/tools/check-source.py";;
   --help|-h)
     printf '%s\n' './start.sh              Build missing/outdated Rust binary and start' \
-      './start.sh --playtest --version 1.26.30  Online LAN test world' \
+      './start.sh --playtest --version 26.51  Online LAN test world (protocol 2193)' \
+      './start.sh --enable-multiversion  Back up existing server.json and enable 975/1001/2193' \
       './start.sh --check-source Check that all tracked source files are present' \
       './start.sh --unit       PHP + JS + Python standalone tests (not a login test)' \
       './start.sh --cross-codec Real Prismarine -> NetherGames cross-codec checks' \
-      './tools/e2e.sh --version 1.26.30  Real isolated server + client test' \
-      './start.sh --audit-data Audit exact installed NBT/data profiles independently' \
-      './start.sh --verify --version 1.26.30  Full gate, report unrun stages honestly' \
+      './tools/e2e.sh --version 1.26.51  Real isolated server + client test' \
+      './start.sh --audit-data Audit exact installed native NBT/data profiles independently' \
+      './start.sh --verify --version 1.26.51  Full gate, report unrun stages honestly' \
       './start.sh --doctor     Install dependencies, verify profiles/packet encoders' \
       './start.sh --test       PHP + Rust + IPC + installed codec tests' \
       './start.sh --refresh-auth Refresh trusted Minecraft public keys' \
@@ -26,6 +29,7 @@ case "$MODE" in
     python3 "$ROOT/tools/check-source.py"
     "${MPE_PHP:-php}" "$ROOT/tests/unit.php"
     "${MPE_PHP:-php}" "$ROOT/tests/packet_factory_unit.php"
+    "${MPE_PHP:-php}" "$ROOT/tests/performance_unit.php"
     node --test "$ROOT"/test-client/test/*.test.cjs
     python3 -m unittest discover -s "$ROOT/tests" -p '*_test.py' -v
     exit 0;;
@@ -39,34 +43,48 @@ fi
 source "$ROOT/tools/php-runtime.sh"
 if [[ ! -f "$ROOT/vendor/autoload.php" ]]; then source "$ROOT/tools/composer-install.sh"; fi
 [[ -n "${MPE_CONFIG:-}" || -f "$ROOT/server.json" ]] || cp "$ROOT/server.example.json" "$ROOT/server.json"
-if [[ "$MODE" == --refresh-auth ]]; then exec "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/gateway/bootstrap.php" --refresh-auth; fi
+# Select the same Node for data import AND the PHP-owned codec subprocess.
+if [[ "$MODE" == --cross-codec || "$MODE" == --test ]] || python3 - <<'PYCONFIG'
+import json, os
+from pathlib import Path
+p=Path(os.environ.get('MPE_CONFIG','server.json'))
+raise SystemExit(0 if 2193 in json.loads(p.read_text()).get('protocols',[]) else 1)
+PYCONFIG
+then
+  source "$ROOT/tools/node-runtime.sh"
+  mpe_node_setup
+fi
+python3 "$ROOT/tools/prepare-native-metadata.py" --if-config
+python3 "$ROOT/tools/prepare-modern-data.py" --if-config
+if [[ "$MODE" == --refresh-auth ]]; then exec "${MPE_PHP_CMD[@]}" "$ROOT/gateway/bootstrap.php" --refresh-auth; fi
 if [[ "$MODE" == --cross-codec ]]; then
   node "$ROOT/tools/codec-doctor.cjs" --out="$ROOT/.runtime/client-packets.json"
-  exec "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/cross_codec.php" "$ROOT/.runtime/client-packets.json"
+  exec "${MPE_PHP_CMD[@]}" "$ROOT/tests/cross_codec.php" "$ROOT/.runtime/client-packets.json"
 fi
 audit_loaded() {
-  python3 "$ROOT/tools/upstream-audit.py" --compare-loaded "$ROOT/data/palettes.loaded.json" --output "$ROOT/data/upstream-audit.json"
+  python3 "$ROOT/tools/audit-loaded.py" --compare-loaded "$ROOT/data/palettes.loaded.json" --output "$ROOT/data/upstream-audit.json"
 }
 if [[ "$MODE" == --doctor ]]; then
-  "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/integration.php"
+  "${MPE_PHP_CMD[@]}" "$ROOT/tests/integration.php"
   audit_loaded
   exit 0
 fi
 if [[ "$MODE" == --test ]]; then
-  "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/unit.php"
-  "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/packet_factory_unit.php"
+  "${MPE_PHP_CMD[@]}" "$ROOT/tests/unit.php"
+  "${MPE_PHP_CMD[@]}" "$ROOT/tests/packet_factory_unit.php"
+  "${MPE_PHP_CMD[@]}" "$ROOT/tests/performance_unit.php"
   node --test "$ROOT"/test-client/test/*.test.cjs
   python3 -m unittest discover -s "$ROOT/tests" -p '*_test.py' -v
   cargo test --locked
   cargo build --release --locked
   python3 "$ROOT/tests/engine_ipc.py" "$ROOT/target/release/mpe-core"
-  "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/integration.php"
+  "${MPE_PHP_CMD[@]}" "$ROOT/tests/integration.php"
   audit_loaded
   exit 0
 fi
 if [[ "$MODE" != --no-build ]]; then cargo build --release --locked; fi
 [[ -x "$ROOT/target/release/mpe-core" ]] || { echo 'No Rust binary. Run ./start.sh without --no-build.' >&2; exit 1; }
 # Fail before opening UDP if an upstream API/asset cannot be encoded.
-"$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/integration.php"
+"${MPE_PHP_CMD[@]}" "$ROOT/tests/integration.php"
 audit_loaded
-exec "$MPE_PHP" "${MPE_PHP_ARGS[@]}" -d memory_limit=512M "$ROOT/gateway/bootstrap.php"
+exec "${MPE_PHP_CMD[@]}" -d memory_limit=512M "$ROOT/gateway/bootstrap.php"

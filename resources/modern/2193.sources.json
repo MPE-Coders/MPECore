@@ -1,0 +1,11 @@
+{
+  "schema": 1, "protocol": 2193, "version": "1.26.51", "data_version": "1.26.50",
+  "inputs": {
+    "block_states.nbt": {"repository":"Pumpkin-MC/Pumpkin","commit":"003d3c49eaf1ca21207671be55a91587bc1330b5","path":"assets/bedrock/block_states.nbt","git_blob_sha1":"3241c5ca2c83af88e7e1073232c8d721f6c84cf0","bytes":3929031},
+    "runtime_item_states.json": {"repository":"CloudburstMC/Data","commit":"a8a4341d7763d6eb8547cff3ca46b4153d60163d","path":"runtime_item_states.json","git_blob_sha1":"ccd98aabaed0bad0c0d279c19fa3723c94f95f7a","bytes":274393},
+    "item_components.nbt": {"repository":"CloudburstMC/Data","commit":"a8a4341d7763d6eb8547cff3ca46b4153d60163d","path":"item_components.nbt","git_blob_sha1":"dd47b02a7c3142d703de4c1033ec2c105b2e4ce9","bytes":17467},
+    "entity_identifiers.dat": {"repository":"CloudburstMC/Data","commit":"a8a4341d7763d6eb8547cff3ca46b4153d60163d","path":"entity_identifiers.dat","git_blob_sha1":"1b1b1e5d067d5b3864e5fff2cc178cb275b32865","bytes":8907},
+    "stripped_biome_definitions.json": {"repository":"CloudburstMC/Data","commit":"a8a4341d7763d6eb8547cff3ca46b4153d60163d","path":"stripped_biome_definitions.json","git_blob_sha1":"8247f1bded79b47a1b24189e0649b6e6835d4f7d","bytes":63914},
+    "LICENSE-CLOUDBURST": {"repository":"CloudburstMC/Data","commit":"a8a4341d7763d6eb8547cff3ca46b4153d60163d","path":"LICENSE","git_blob_sha1":"261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64","bytes":11357}
+  }
+}

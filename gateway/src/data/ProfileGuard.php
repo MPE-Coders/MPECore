@@ -7,8 +7,9 @@ final class ProfileGuard {
     public const ASSETS = ['block_palette', 'block_meta', 'items', 'entity_identifiers', 'biomes'];
 
     public static function validate(array $profile): void {
+        if (($profile['schema_version'] ?? null) === 3) { ModernData::validateProfile($profile); return; }
         if (($profile['schema_version'] ?? null) !== 2) {
-            throw new \UnexpectedValueException('Unsupported profile schema; expected version 2');
+            throw new \UnexpectedValueException('Unsupported profile schema; expected version 2 or explicit modern profile');
         }
         foreach (['protocol', 'min_section', 'max_section', 'codec_base'] as $key) {
             if (!isset($profile[$key]) || !is_int($profile[$key])) {
@@ -20,6 +21,10 @@ final class ProfileGuard {
         }
         if (($profile['codec'] ?? '') !== 'nethergames' || $profile['codec_base'] !== $profile['protocol']) {
             throw new \UnexpectedValueException('This runtime requires a native NetherGames codec matching the profile');
+        }
+        if ($profile['protocol']===1001 && (($profile['block_meta']??null)!==NativeMetadata::FILE ||
+            ($profile['metadata_reference']??null)!==NativeMetadata::COMMIT)) {
+            throw new \UnexpectedValueException('1001 requires the explicitly pinned corrected 26.30 metadata');
         }
         foreach (['data_reference', 'codec_reference'] as $key) {
             if (!is_string($profile[$key] ?? null) || !preg_match('/^[a-f0-9]{40}$/D', $profile[$key])) {
@@ -38,6 +43,8 @@ final class ProfileGuard {
     }
 
     public static function accepted(int $id, array $accepted): void {
+        // Only this specific reviewed adapter uses 1001 as an intermediate object representation.
+        if ($id === 2193 && in_array(1001, $accepted, true)) { return; }
         if (!in_array($id, $accepted, true)) {
             throw new \UnexpectedValueException("Protocol $id is not in this exact codec's ACCEPTED_PROTOCOL list. Use a separate legacy gateway rather than relabel packets.");
         }

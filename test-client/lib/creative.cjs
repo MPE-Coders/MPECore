@@ -21,6 +21,7 @@ function playerInventory(packet) {
 async function creativeScenario(client, inbox, options, state, probe, check, start) {
   assert.equal(start.player_gamemode, 'creative', 'Server did not put this player in Creative')
   const content = await inbox.expect('inventory_content', playerInventory, options.timeout)
+  await require('./inventory.cjs').inventoryScenario(client,inbox,options,content,check)
   const held = content.input[0]
   assert(held && Number.isInteger(held.network_id) && held.network_id !== 0, 'First hotbar slot is empty')
   check('creative-mode-and-hotbar', { slots: content.input.length, heldItemSource: 'server InventoryContent' })
@@ -31,12 +32,16 @@ async function creativeScenario(client, inbox, options, state, probe, check, sta
   await inbox.expect('container_close', p => p.window_id === opened.window_id, options.timeout)
   check('ordinary-inventory-open-close', { window: opened.window_id, scope: 'packet acknowledgement, not rendered UI' })
   const [px, py, pz] = state.position
-  const clicked = { x: Math.floor(px) + 2, y: 63, z: Math.floor(pz) }
+  const clicked = { x: Math.floor(px) + 4, y: 63, z: Math.floor(pz) }
   const target = { ...clicked, y: 64 }
   const before = await probe(target.x, target.y, target.z)
   assert.equal(before.block.id, 0, 'Refusing to overwrite an existing block during creative test')
   const support = await probe(clicked.x, clicked.y, clicked.z)
   assert.equal(support.block.id, 1, 'Test placement needs the flat grass support')
+  // The central chunk was delivered before PLAYER_SPAWN. Only observe this
+  // column; background delivery of other columns must not create false failures.
+  const column = { x: Math.floor(target.x / 16), z: Math.floor(target.z / 16) }
+  const fullChunks = inbox.watch('level_chunk', p => p.x === column.x && p.z === column.z)
   let dirty = false
   const destroy = runtime => client.queue('inventory_transaction', useItem('break_block', target, held, [px, py, pz], runtime))
   try {
@@ -54,7 +59,14 @@ async function creativeScenario(client, inbox, options, state, probe, check, sta
     assert.equal(broken.block.id, 0, 'Ordinary break did not restore air in the Rust world')
     dirty = false
     check('ordinary-block-break-and-restore', { position: target, canonical: 0, mutation: 'InventoryTransaction/UseItem' })
+    // Observe seven more ticks: the old implementation invalidated loaded[] and
+    // resent the entire column on the next 50-ms chunk-scheduler iteration.
+    await new Promise(resolve => setTimeout(resolve, 350))
+    if (inbox.error) throw inbox.error
+    assert.equal(fullChunks.matches, 0, 'Ordinary edits resent a full LevelChunk instead of block deltas')
+    check('block-deltas-without-full-chunk-resend', { column, fullChunksAfterEdit: fullChunks.matches, observeMs: 350 })
   } finally {
+    fullChunks.close()
     if (dirty) {
       // A lost ACK does not mean no edit happened. Best effort; never report unconfirmed cleanup as successful.
       destroy(support.block.runtime)
