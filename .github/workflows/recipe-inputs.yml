@@ -1,0 +1,27 @@
+name: Pinned Mojang recipe inputs
+on:
+  push:
+    branches: [bootstrap/recipe-inputs-20260926]
+permissions:
+  contents: read
+jobs:
+  samples:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Fetch public text-only samples by published SHA256
+        run: |
+          mkdir -p inputs
+          python3 - <<'PY'
+          import hashlib, pathlib, urllib.request
+          u='https://github.com/Mojang/bedrock-samples/releases/download/v1.26.50.4/bedrock-samples-v1.26.50.4-min.zip'
+          with urllib.request.urlopen(u,timeout=60) as r: d=r.read(14408779)
+          assert len(d)==14408778
+          assert hashlib.sha256(d).hexdigest()=='2bb667786f4d5bedf97a61cec4ce9613c1e2986224c9deda5fbb108c2d96b07c'
+          pathlib.Path('inputs/samples-1.26.50.4.zip').write_bytes(d)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pinned-mojang-recipe-inputs
+          path: inputs/
+          retention-days: 3
