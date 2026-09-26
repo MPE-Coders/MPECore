@@ -1,0 +1,42 @@
+name: Pinned content development inputs
+on:
+  push:
+    branches: [bootstrap/content-inputs-20260926]
+permissions:
+  contents: read
+jobs:
+  inputs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Fetch immutable public content and verify Git blob digests
+        run: |
+          mkdir -p inputs
+          python3 - <<'PY'
+          import hashlib, pathlib, urllib.request
+          root=pathlib.Path('inputs')
+          commit='a8a4341d7763d6eb8547cff3ca46b4153d60163d'
+          files={
+            'recipes.json':('516badd5a4e45d67046e4ea3371685c601a3d305',3072498),
+            'creative_items.json':('c83fd98d770622674a8df7c6cb361891615d3b67',475468),
+            'block_attributes.json':('22066b46690946e97ad5c0a56603687abe4e4280',459551),
+            'block_properties.json':('bfa5e0a116f231e2dc73d65ab61279e1944be07a',13983452),
+            'block_palette.nbt':('e7586cb726f53643d185d1b2cb8e9655c4a3bd4a',273939),
+            'LICENSE':('261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64',11357)}
+          for name,(digest,size) in files.items():
+            with urllib.request.urlopen('https://raw.githubusercontent.com/CloudburstMC/Data/'+commit+'/'+name,timeout=60) as r: data=r.read(size+1)
+            assert len(data)==size
+            assert hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()==digest
+            (root/name).write_bytes(data)
+          PY
+      - name: Export public compiler only, no runner environment or credentials
+        run: |
+          rustup toolchain install 1.85.1 --profile minimal
+          TOOLCHAIN="$HOME/.rustup/toolchains/1.85.1-x86_64-unknown-linux-gnu"
+          tar -czf inputs/rust-toolchain.tar.gz -C "$TOOLCHAIN" bin lib share/doc/rust/licenses share/doc/rust/COPYRIGHT share/doc/rust/LICENSE-APACHE share/doc/rust/LICENSE-MIT
+          sha256sum inputs/* > inputs/SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pinned-content-development-inputs
+          path: inputs/
+          retention-days: 3
