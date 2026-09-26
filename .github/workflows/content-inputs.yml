@@ -33,7 +33,7 @@ jobs:
         run: |
           rustup toolchain install 1.85.1 --profile minimal
           TOOLCHAIN="$HOME/.rustup/toolchains/1.85.1-x86_64-unknown-linux-gnu"
-          tar -czf inputs/rust-toolchain.tar.gz -C "$TOOLCHAIN" bin lib share/doc/rust/licenses share/doc/rust/COPYRIGHT share/doc/rust/LICENSE-APACHE share/doc/rust/LICENSE-MIT
+          tar -czf inputs/rust-toolchain.tar.gz -C "$TOOLCHAIN" bin lib share/doc/rust/COPYRIGHT share/doc/rust/LICENSE-APACHE share/doc/rust/LICENSE-MIT
           sha256sum inputs/* > inputs/SHA256SUMS
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
