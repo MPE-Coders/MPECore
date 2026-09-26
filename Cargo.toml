@@ -1,0 +1,12 @@
+[package]
+name = "mpe-core"
+version = "0.4.0"
+edition = "2021"
+rust-version = "1.74"
+license = "GPL-3.0-or-later"
+description = "Experimental Bedrock world engine with a RakLib/PHP protocol gateway"
+publish = false
+[dependencies]
+[profile.release]
+lto = "thin"
+codegen-units = 1

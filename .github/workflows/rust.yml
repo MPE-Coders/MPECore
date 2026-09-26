@@ -1,0 +1,31 @@
+name: Rust engine
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'Cargo.*', '.github/workflows/rust.yml']
+  pull_request:
+    paths: ['src/**', 'Cargo.*', '.github/workflows/rust.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned compiler
+        run: rustup toolchain install 1.85.1 --profile minimal
+      - name: Test actual Rust source
+        run: cargo +1.85.1 test --locked
+      - name: Build release engine
+        run: cargo +1.85.1 build --release --locked
+      - name: Record binary hash
+        run: sha256sum target/release/mpe-core > target/release/mpe-core.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mpe-core-engine-linux-x64-${{ github.sha }}
+          path: |
+            target/release/mpe-core
+            target/release/mpe-core.sha256
+          if-no-files-found: error
