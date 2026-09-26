@@ -22,6 +22,11 @@ try{
     $count=0;
     foreach($server->registries as $id=>$registry){
         $packets=SpawnSequence::packets($registry,42,[0.5,64.0,0.5],'Codec test');
+        $meta=SpawnSequence::actorData(42);
+        $f=$meta->metadata[T\entity\EntityMetadataProperties::FLAGS]->getValue();
+        foreach([T\entity\EntityMetadataFlags::AFFECTED_BY_GRAVITY,T\entity\EntityMetadataFlags::HAS_COLLISION] as $flag){
+            if(($f & (1<<$flag))===0){throw new RuntimeException('Player gravity/collision flag missing');}
+        }
         $inventory=new PlayerInventory();
         array_push($packets,...InventoryNetwork::contents($registry,$inventory));
         $changes=$inventory->request(-1,[['type'=>'move','source'=>[28,0,1],'destination'=>[29,12,0],'count'=>1]],true);

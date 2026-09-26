@@ -21,7 +21,6 @@ final class CreativeGameHandler {
     private int $requests = 0;
     private int $serial = 0;
     private ?int $inventoryWindow = null;
-    private int $nextWindow = 1;
     public function __construct(private NetworkSession $session) { $this->inventory = new PlayerInventory(); }
     public function sync(bool $force = false): void {
         $now=microtime(true);
@@ -83,12 +82,10 @@ final class CreativeGameHandler {
         if($p instanceof P\InteractPacket) {
             if($p->action===P\InteractPacket::ACTION_OPEN_INVENTORY && $p->targetActorRuntimeId===$this->session->runtimeId && $this->budget()) {
                 if($this->inventoryWindow===null) {
-                    $this->inventoryWindow=$this->nextWindow;
-                    $this->nextWindow=$this->nextWindow>=99?1:$this->nextWindow+1;
+                    $this->inventoryWindow=I\ContainerIds::INVENTORY;
                     $this->session->send(P\ContainerOpenPacket::entityInv($this->inventoryWindow,255,$this->session->runtimeId));
                 }
                 $this->sync(true);
-                foreach(InventoryNetwork::contents($this->session->registry(),$this->inventory,$this->inventoryWindow) as $content) { $this->session->send($content); }
                 $this->session->diagnostic('inventory_opened',(string)$this->inventoryWindow);
             }
             return true;
@@ -107,13 +104,16 @@ final class CreativeGameHandler {
         $this->session->send(SpawnSequence::abilities($this->session->runtimeId,$this->session->canBuild(),$this->flying));
     }
     private function stackRequest(ItemStackRequest $request): void {
-        $changes=null;
+        $changes=null;$actions=[];
         try {
             if(!$this->budget()) { throw new \UnexpectedValueException('Inventory request budget'); }
-            $changes=$this->inventory->request($request->getRequestId(),InventoryNetwork::actions($request),$this->session->canBuild());
+            $actions=InventoryNetwork::actions($request);
+            $changes=$this->inventory->request($request->getRequestId(),$actions,$this->session->canBuild());
         } catch(\UnexpectedValueException|\InvalidArgumentException $e) { $this->session->diagnostic('inventory_rejected',$e->getMessage()); }
-        $this->session->send(InventoryNetwork::response($request->getRequestId(),$changes));
-        $this->sync(true);
+        $this->session->send(InventoryNetwork::response($request->getRequestId(),$changes,$actions));
+        if($changes===null){$this->sync();}
+        $this->session->diagnostic($changes===null?'inventory_request_failed':'inventory_request_committed',
+            'request='.$request->getRequestId().' actions='.count($actions));
     }
     private function useItem(I\UseItemTransactionData $data): void {
         if(!$this->inventory->select($data->getHotbarSlot())) { $this->sync();return; }

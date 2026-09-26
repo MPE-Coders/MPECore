@@ -120,6 +120,13 @@ final class Server {
                         $this->chunkCache[$key]=ChunkSerializer::serialize($sections,$r->blocks->runtimeMap());
                     }
                     $s->chunk($x,$z,$n,$this->chunkCache[$key]);break;
+                case 0x8e:
+                    $feet=$this->readVector($frame,$o);$pitch=Binary::readF32($frame,$o);$yaw=Binary::readF32($frame,$o);$tick=Binary::readU64($frame,$o);
+                    $velocity=Binary::readF32($frame,$o);$ground=ord(Binary::take($frame,$o,1));$correct=ord(Binary::take($frame,$o,1));
+                    if($ground>1||$correct>1||!is_finite($velocity)||$o!==strlen($frame)){throw new \UnexpectedValueException('Invalid physics response');}
+                    if($correct){$s->correct($feet,$pitch,$yaw,$tick,(bool)$ground,$velocity);}
+                    else{$s->acceptPosition($feet,$pitch,$yaw);}
+                    break;
                 case 0x84:
                     $feet=$this->readVector($frame,$o);$pitch=Binary::readF32($frame,$o);$yaw=Binary::readF32($frame,$o);$tick=Binary::readU64($frame,$o);
                     $ground=ord(Binary::take($frame,$o,1));

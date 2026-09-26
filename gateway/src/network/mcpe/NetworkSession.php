@@ -110,8 +110,12 @@ final class NetworkSession {
             if($p instanceof P\PlayerAuthInputPacket){$pos=$p->getPosition();$pitch=$p->getPitch();$yaw=$p->getYaw();$tick=$p->getTick();}
             else{return;}
             if(!is_finite($pos->x)||!is_finite($pos->y)||!is_finite($pos->z)||!is_finite($pitch)||!is_finite($yaw)||$tick<0){throw new \UnexpectedValueException('Non-finite movement');}
-            $feet=[$pos->x,$pos->y-1.62,$pos->z];
-            $this->server->engineSend("\x03".Binary::u64($this->sid).pack('g*',...$feet).pack('g2',$pitch,$yaw).Binary::u64($tick));
+            $feet=[round($pos->x,4),round($pos->y-1.62,4),round($pos->z,4)];
+            $flags=$p->getInputFlags();
+            $flying=$flags->get(T\PlayerAuthInputFlags::START_FLYING) || $this->game->flying;
+            if($flags->get(T\PlayerAuthInputFlags::STOP_FLYING)){$flying=false;}
+            $jump=$flags->get(T\PlayerAuthInputFlags::START_JUMPING) || $flags->get(T\PlayerAuthInputFlags::JUMPING);
+            $this->server->engineSend("\x0d".Binary::u64($this->sid).pack('g*',...$feet).pack('g2',$pitch,$yaw).Binary::u64($tick).chr(($flying?1:0)|($jump?2:0)));
             $this->game->input($p);
             return;
         }
@@ -215,9 +219,9 @@ final class NetworkSession {
             if($ready){$this->send(P\PlayStatusPacket::create(3));$this->spawnSent=true;$this->diagnostic('spawn_sent','3x3 central chunks queued before PLAYER_SPAWN');}
         }
     }
-    public function correct(array $feet,float $pitch,float $yaw,int $tick,bool $onGround):void {
+    public function correct(array $feet,float $pitch,float $yaw,int $tick,bool $onGround,float $velocityY=0.0):void {
         if($this->state!==self::PLAY){return;}$this->feet=$feet;$this->pitch=$pitch;$this->yaw=$yaw;
-        $this->send(MovementSync::correction($feet,$tick,$onGround));$this->updateChunks();
+        $this->send(MovementSync::correction($feet,$tick,$onGround,$velocityY));$this->updateChunks();
         $this->diagnostic('movement_corrected','client_tick='.$tick.' on_ground='.(int)$onGround);
     }
     public function teleport(array $feet,float $pitch,float $yaw,int $tick):void {
