@@ -7,10 +7,12 @@ case "$MODE" in
   --audit-data) shift; exec python3 "$ROOT/tools/upstream-audit.py" "$@";;
   --verify) shift; exec python3 "$ROOT/tools/verify.py" "$@";;
   --playtest) shift; exec "$ROOT/tools/playtest.sh" "$@";;
+  --check-source) exec python3 "$ROOT/tools/check-source.py";;
   --help|-h)
     printf '%s\n' './start.sh              Build missing/outdated Rust binary and start' \
       './start.sh --playtest --version 1.26.30  Online LAN test world' \
-      './start.sh --unit       Dependency-free PHP + JS tests (system php/node)' \
+      './start.sh --check-source Check that all tracked source files are present' \
+      './start.sh --unit       PHP + JS + Python standalone tests (not a login test)' \
       './start.sh --cross-codec Real Prismarine -> NetherGames cross-codec checks' \
       './tools/e2e.sh --version 1.26.30  Real isolated server + client test' \
       './start.sh --audit-data Audit exact installed NBT/data profiles independently' \
@@ -20,10 +22,17 @@ case "$MODE" in
       './start.sh --refresh-auth Refresh trusted Minecraft public keys' \
       './start.sh --no-build   Run existing release binary; still check dependencies'
     exit 0;;
-  --unit) "${MPE_PHP:-php}" "$ROOT/tests/unit.php"; node --test "$ROOT"/test-client/test/*.test.cjs; python3 -m unittest discover -s "$ROOT/tests" -p '*_test.py' -v; exit 0;;
+  --unit)
+    python3 "$ROOT/tools/check-source.py"
+    "${MPE_PHP:-php}" "$ROOT/tests/unit.php"
+    "${MPE_PHP:-php}" "$ROOT/tests/packet_factory_unit.php"
+    node --test "$ROOT"/test-client/test/*.test.cjs
+    python3 -m unittest discover -s "$ROOT/tests" -p '*_test.py' -v
+    exit 0;;
   run|--doctor|--cross-codec|--test|--refresh-auth|--no-build) ;;
   *) echo "Unknown option: $MODE (./start.sh --help)" >&2; exit 2;;
 esac
+python3 "$ROOT/tools/check-source.py"
 if [[ "$MODE" == run || "$MODE" == --test ]]; then
   command -v cargo >/dev/null || { echo 'Rust/Cargo >=1.74 required. On Ubuntu: sudo apt install build-essential cargo' >&2; exit 1; }
 fi
@@ -45,6 +54,7 @@ if [[ "$MODE" == --doctor ]]; then
 fi
 if [[ "$MODE" == --test ]]; then
   "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/unit.php"
+  "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/packet_factory_unit.php"
   node --test "$ROOT"/test-client/test/*.test.cjs
   python3 -m unittest discover -s "$ROOT/tests" -p '*_test.py' -v
   cargo test --locked

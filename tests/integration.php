@@ -48,8 +48,46 @@ try{
             P\PacketViolationWarningPacket::create(0,0,11,'fixture')
         );
         foreach($packets as $packet){
-            $wire=PacketCodec::encode($packet,$id);$class=$packet::class;$copy=new $class();$back=$id>1001?\mpe\network\mcpe\CodecBridge::convert($wire,$id,1001):$wire;$copy->decode(new ByteBufferReader($back),$id>1001?1001:$id);$count++;
-            if($packet instanceof P\StartGamePacket && ($copy->actorRuntimeId!==42||$copy->levelSettings->vanillaVersion!==$registry->profile->version||$copy->playerGamemode!==1)){throw new RuntimeException('StartGame roundtrip mismatch');}
+            $class=$packet::class;
+            try {
+                if ($packet instanceof P\StartGamePacket) {
+                    // Non-empty values prove that decoding reads bytes rather than
+                    // merely retaining the neutral factory defaults.
+                    $packet->serverTelemetryData = new T\ServerTelemetryData(
+                        "server-$id", "scenario-$id", "world-$id", "owner-$id"
+                    );
+                }
+                $wire=PacketCodec::encode($packet,$id);
+                $copy=\mpe\network\mcpe\PacketDecodeFactory::create($class);
+                $base=$id>1001?1001:$id;
+                $back=$id>1001?\mpe\network\mcpe\CodecBridge::convert($wire,$id,1001):$wire;
+                $copy->decode(new ByteBufferReader($back),$base);
+                if ($packet instanceof P\StartGamePacket) {
+                    if ($copy->actorRuntimeId!==42 || $copy->levelSettings->vanillaVersion!==$registry->profile->version || $copy->playerGamemode!==1) {
+                        throw new RuntimeException('StartGame roundtrip mismatch');
+                    }
+                    $t=$copy->serverTelemetryData;
+                    $hasTelemetry=$base>=P\ProtocolInfo::PROTOCOL_1_21_0;
+                    $hasOwner=$base>=P\ProtocolInfo::PROTOCOL_1_21_90;
+                    $expected=$hasTelemetry?["server-$id","scenario-$id","world-$id",$hasOwner?"owner-$id":""]:['','','',''];
+                    if ([$t->getServerId(),$t->getScenarioId(),$t->getWorldId(),$t->getOwnerId()]!==$expected) {
+                        throw new RuntimeException('StartGame telemetry was not decoded from the wire');
+                    }
+                    if ($id<=1001 && PacketCodec::encode($copy,$id)!==$wire) {
+                        throw new RuntimeException('StartGame byte-for-byte re-encode mismatch');
+                    }
+                    $rejected=false;
+                    try {
+                        $short=\mpe\network\mcpe\PacketDecodeFactory::create($class);
+                        $short->decode(new ByteBufferReader(substr($back,0,-1)),$base);
+                    } catch (Throwable) { $rejected=true; }
+                    if (!$rejected) { throw new RuntimeException('Truncated StartGame was accepted'); }
+                    echo "PASS StartGame telemetry + wire roundtrip + truncation profile $id\n";
+                }
+                $count++;
+            } catch (Throwable $e) {
+                throw new RuntimeException("Profile $id ({$registry->profile->version}), $class: ".$e->getMessage(),0,$e);
+            }
         }
         $notice=P\PacketViolationWarningPacket::create(0,2,11,'test');
         $decodedNotice=PacketCodec::decode(PacketCodec::encode($notice,$id),$id);

@@ -29,7 +29,7 @@ final class PacketCodec {
         if($class===null){return null;}
         $base=$protocol;
         if($protocol>1001){$packet=CodecBridge::convert($packet,$protocol,1001);$base=1001;}
-        $p=new $class();$p->decode(new ByteBufferReader($packet),$base);return $p;
+        $p=PacketDecodeFactory::create($class);$p->decode(new ByteBufferReader($packet),$base);return $p;
     }
     public static function encode(P\DataPacket $packet,int $protocol):string{
         $out=new ByteBufferWriter();$packet->encode($out,$protocol>1001?1001:$protocol);

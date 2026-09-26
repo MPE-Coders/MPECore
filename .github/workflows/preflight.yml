@@ -1,0 +1,58 @@
+name: Installed Bedrock codec preflight
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  codecs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        protocol: [671, 766, 975, 1001]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Prepare bootstrap tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends php-cli php-mbstring python3 curl ca-certificates unzip git
+      - name: Check source and select one exact protocol
+        env:
+          PROTOCOL: ${{ matrix.protocol }}
+        run: |
+          python3 tools/check-source.py
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          config = json.loads(Path('server.example.json').read_text())
+          config.update({'host': '127.0.0.1', 'protocols': [int(os.environ['PROTOCOL'])],
+                         'advertise-protocol': int(os.environ['PROTOCOL']), 'experimental-codecs': False})
+          Path('server.json').write_text(json.dumps(config))
+          PY
+      - name: Real installed packet codecs and version-specific NBT
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ci-results
+          ./start.sh --doctor 2>&1 | tee ci-results/preflight.log
+      - name: Record the boundary of this test
+        if: always()
+        run: |
+          echo 'Installed-codec/NBT checks only. No RakNet login and no official Minecraft client.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload actual preflight logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preflight-${{ matrix.protocol }}-${{ github.sha }}
+          path: |
+            ci-results/
+            data/palettes.loaded.json
+            data/upstream-audit.json
+          if-no-files-found: warn
+          retention-days: 14
