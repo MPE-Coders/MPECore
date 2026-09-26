@@ -8,7 +8,7 @@ class CodecEngine {
     if(![1001,2168,2169,2193].includes(id))throw Error(`Not an experimental bridge endpoint: ${id}`)
     if(!this.codecs.has(id)){
       const version=CATALOG.get(id),data=require('minecraft-data')('bedrock_'+version)
-      if(!data?.protocol?.types)throw Error(`Installed minecraft-data has no exact ${version} schema`)
+      if(!data?.protocol?.types || data.version?.version!==id)throw Error(`Installed minecraft-data has no exact ${version}/${id} schema`)
       const {createSerializer,createDeserializer}=require('bedrock-protocol/src/transforms/serializer')
       this.codecs.set(id,{version,types:data.protocol.types,serializer:createSerializer(version),deserializer:createDeserializer(version)})
     }
@@ -20,6 +20,7 @@ class CodecEngine {
     const reencoded=src.serializer.createPacketBuffer(parsed)
     if(!buffer.equals(reencoded))throw Error(`Non-canonical/trailing source data for ${parsed.name}`)
     const params=adapt(parsed.name,parsed.params,from,to)
+    require('./fields-2193.cjs').adaptFields(parsed.name,params,from,to)
     assertTopLevel(parsed.name,params,dest.types)
     const result=dest.serializer.createPacketBuffer({name:parsed.name,params})
     if(result.length>MAX_PACKET)throw Error('Encoded packet too large')

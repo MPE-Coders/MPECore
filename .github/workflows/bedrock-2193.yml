@@ -22,11 +22,17 @@ jobs:
           sudo apt-get install -y --no-install-recommends php-cli php-mbstring python3 curl ca-certificates unzip git
           mkdir -p ci-results
           ./tools/node-install.sh
+      - name: Standalone regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./start.sh --unit 2>&1 | tee ci-results/unit.log
       - name: Verify and import immutable modern data
         shell: bash
         run: |
           set -euo pipefail
           python3 tools/prepare-modern-data.py --protocol 2193 2>&1 | tee ci-results/data-2193.log
+          node tools/schema-diff.cjs | tee ci-results/schema-diff.jsonl
       - name: Real 2193 packet schemas
         shell: bash
         run: |

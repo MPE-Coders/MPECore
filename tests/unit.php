@@ -156,7 +156,7 @@ test('Canonical mappings are typed, explicit, and reject ambiguous variants',fun
 });
 test('All protocol profiles use explicit safe filenames and separate item/block aliases',function(){
     $root=dirname(__DIR__);$files=glob($root.'/resources/protocols/*.json');same(count($files),31);
-    foreach($files as $f){$raw=json_decode(file_get_contents($f),true);if($raw['protocol']>1001){rejects(fn()=>new \mpe\network\mcpe\convert\ProtocolProfile($f));continue;}$p=new \mpe\network\mcpe\convert\ProtocolProfile($f);foreach(['block_palette','block_meta','items'] as $k){same(basename($p->data[$k]),$p->data[$k]);}}
+    foreach($files as $f){$raw=json_decode(file_get_contents($f),true);if($raw['protocol']>1001&&$raw['protocol']!==2193){rejects(fn()=>new \mpe\network\mcpe\convert\ProtocolProfile($f));continue;}$p=new \mpe\network\mcpe\convert\ProtocolProfile($f);foreach(['block_palette','block_meta','items'] as $k){same(basename($p->data[$k]),$p->data[$k]);}}
     $p=new \mpe\network\mcpe\convert\ProtocolProfile($root.'/resources/protocols/800.json');
     same($p->data['block_palette'],'canonical_block_states-1.21.93.nbt');same($p->data['items'],'required_item_list-1.21.80.json');
 });

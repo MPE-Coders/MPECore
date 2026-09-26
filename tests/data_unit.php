@@ -3,14 +3,15 @@
 use mpe\data\ProfileGuard;
 use mpe\data\AssetIntegrity;
 function nativeProfile():array{return json_decode(file_get_contents(dirname(__DIR__).'/resources/protocols/1001.json'),true,64,JSON_THROW_ON_ERROR);}
-test('Native data profiles pin codec/data references; unproven transcodes are rejected',function(){
-    $native=0;$blocked=0;
+test('Native data profiles pin codec/data references; 2193 has a separate pinned data contract',function(){
+    $native=0;$blocked=0;$modern=0;
     foreach(glob(dirname(__DIR__).'/resources/protocols/*.json') as $file){
         $p=json_decode(file_get_contents($file),true,64,JSON_THROW_ON_ERROR);
         if($p['protocol']<=1001){ProfileGuard::validate($p);$native++;}
+        elseif($p['protocol']===2193){ProfileGuard::validate($p);$modern++;}
         else{rejects(fn()=>ProfileGuard::validate($p));$blocked++;}
     }
-    same($native,28);same($blocked,3);
+    same($native,28);same($blocked,2);same($modern,1);
 });
 test('Profiles reject paths, wrong codec and wrong world height',function(){
     foreach([['schema_version',3],['items','../escape'],['items','nested/path'],['items',"bad\0name"],['data_reference','master'],['min_section',0],['codec_base',671],['codec','prismarine-transcode']] as [$key,$value]){
@@ -21,6 +22,14 @@ test('Accepted protocol list is exact, not a numeric interval',function(){
     ProfileGuard::accepted(671,[589,671,1001]);
     rejects(fn()=>ProfileGuard::accepted(670,[589,671,1001]));
     rejects(fn()=>ProfileGuard::accepted(671,['671']));
+});
+test('2193 contract rejects invented protocol, mismatched data and unsafe asset paths',function(){
+    $p=json_decode(file_get_contents(dirname(__DIR__).'/resources/protocols/2193.json'),true,64,JSON_THROW_ON_ERROR);
+    ProfileGuard::validate($p);ProfileGuard::accepted(2193,[1001]);
+    rejects(fn()=>ProfileGuard::accepted(2193,[975]));rejects(fn()=>ProfileGuard::accepted(12193,[1001]));
+    foreach([['protocol',12193],['data_reference',str_repeat('a',40)],['block_palette','canonical_block_states.nbt'],['items','../escape'],['codec_base',975]] as [$key,$value]){
+        $bad=$p;$bad[$key]=$value;rejects(fn()=>ProfileGuard::validate($bad));
+    }
 });
 test('Metadata order and NBT companion types are not coerced',function(){
     ProfileGuard::metadata([0,1,2],3);rejects(fn()=>ProfileGuard::metadata([0,1],3));
