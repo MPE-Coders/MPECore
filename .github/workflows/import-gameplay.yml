@@ -1,0 +1,83 @@
+name: Materialize and verify gameplay source
+on:
+  push:
+    branches: ['bootstrap/gameplay-fixes-20260926']
+permissions:
+  contents: write
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 2
+      - name: Materialize exact reviewed patch into real source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = ef0e78417bfeb60af5b2a56e7e549eb09d86644f
+          python3 - <<'PY'
+          import base64,gzip,hashlib,os
+          from pathlib import Path
+          b64=''.join(Path('.github/gameplay-import/'+str(i)+'.b64').read_text().strip() for i in range(3))
+          compressed=base64.b64decode(b64,validate=True)
+          assert hashlib.sha256(compressed).hexdigest()=='6dc38aa886cf7a3e0b7980d81ce15a6c8cc1249b9c47ed5181052f2d85786220'
+          patch=gzip.decompress(compressed)
+          assert hashlib.sha256(patch).hexdigest()=='445b6fb930cbd93a8f0f8865d80ae752a4502689adbb0a8ee76dfa0ba4466f5a'
+          Path(os.environ['RUNNER_TEMP']+'/gameplay.patch').write_bytes(patch)
+          PY
+          # Workflow changes are installed separately through the authorized connector.
+          # No main/feature ref is modified by this bootstrap job.
+          git apply --check --index --unidiff-zero --exclude='.github/workflows/*' "$RUNNER_TEMP/gameplay.patch"
+          git apply --index --unidiff-zero --exclude='.github/workflows/*' "$RUNNER_TEMP/gameplay.patch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Implement face reach, minimal vertical physics, inventory transfers and multi-protocol default'
+          git push origin HEAD:refs/heads/bootstrap/gameplay-materialized-20260926
+          git rev-parse HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install test tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends php-cli php-mbstring python3 curl ca-certificates unzip git
+          mkdir -p ci-results
+          ./tools/node-install.sh
+      - name: Standalone regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./start.sh --unit 2>&1 | tee ci-results/unit.log
+      - name: Compile and test actual new Rust physics
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.85.1 --profile minimal
+          cargo +1.85.1 test --locked 2>&1 | tee ci-results/rust-tests.log
+          cargo +1.85.1 build --release --locked 2>&1 | tee ci-results/rust-build.log
+          python3 tests/engine_ipc.py target/release/mpe-core 2>&1 | tee ci-results/engine-ipc.log
+      - name: Native and bridged packet data
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./start.sh --doctor 2>&1 | tee ci-results/doctor.log
+      - name: Real encrypted clients, inventory and far placement
+        shell: bash
+        run: |
+          set -euo pipefail
+          for version in 1.26.20 1.26.30 1.26.51; do
+            ./tools/e2e.sh --version "$version" --scenario creative 2>&1 | tee "ci-results/e2e-$version.log"
+          done
+          ./tools/e2e.sh --multi 2>&1 | tee ci-results/e2e-multiversion.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gameplay-source-verification-${{ github.sha }}
+          path: |
+            ci-results/
+            tests/results/e2e/
+            target/release/mpe-core
+          if-no-files-found: warn
+          retention-days: 7
