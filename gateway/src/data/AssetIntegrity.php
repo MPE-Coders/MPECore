@@ -50,7 +50,8 @@ final class AssetIntegrity {
         ], $this->references);
         $result = [];
         foreach (ProfileGuard::ASSETS as $key) {
-            $name = $profile[$key]; $path = $assetRoot.'/'.$name;
+            $name = $profile[$key]; $path = $profile['protocol']===1001 && $key==='block_meta'
+                ? NativeMetadata::path($this->root) : $assetRoot.'/'.$name;
             if (!isset($this->checked[$name])) {
                 $size = is_file($path) ? filesize($path) : false;
                 if ($size === false || $size === 0 || $size > 64 * 1024 * 1024) {

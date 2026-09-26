@@ -22,6 +22,10 @@ final class ProfileGuard {
         if (($profile['codec'] ?? '') !== 'nethergames' || $profile['codec_base'] !== $profile['protocol']) {
             throw new \UnexpectedValueException('This runtime requires a native NetherGames codec matching the profile');
         }
+        if ($profile['protocol']===1001 && (($profile['block_meta']??null)!==NativeMetadata::FILE ||
+            ($profile['metadata_reference']??null)!==NativeMetadata::COMMIT)) {
+            throw new \UnexpectedValueException('1001 requires the explicitly pinned corrected 26.30 metadata');
+        }
         foreach (['data_reference', 'codec_reference'] as $key) {
             if (!is_string($profile[$key] ?? null) || !preg_match('/^[a-f0-9]{40}$/D', $profile[$key])) {
                 throw new \UnexpectedValueException("Profile must pin a full Git commit in $key");

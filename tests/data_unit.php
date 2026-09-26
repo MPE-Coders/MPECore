@@ -49,7 +49,7 @@ test('Source references cannot silently mix different upstream snapshots',functi
 });
 test('Asset fingerprints commit atomically and reject subsequent data drift',function(){
     $dir=sys_get_temp_dir().'/mpe-assets-'.bin2hex(random_bytes(6));mkdir($dir);mkdir($dir.'/assets');
-    $p=nativeProfile();$refs=['nethergamesmc/bedrock-data'=>$p['data_reference'],'nethergamesmc/bedrock-protocol'=>$p['codec_reference']];
+    $p=json_decode(file_get_contents(dirname(__DIR__).'/resources/protocols/975.json'),true,32,JSON_THROW_ON_ERROR);$refs=['nethergamesmc/bedrock-data'=>$p['data_reference'],'nethergamesmc/bedrock-protocol'=>$p['codec_reference']];
     try{
         foreach(ProfileGuard::ASSETS as $key){file_put_contents($dir.'/assets/'.$p[$key],'fixture-'.$key);}
         $a=new AssetIntegrity($dir,$refs);$rows=$a->profile($p,$dir.'/assets');same(count($rows),5);

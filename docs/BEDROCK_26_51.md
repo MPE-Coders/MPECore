@@ -1,44 +1,90 @@
-# Bedrock 26.51: протокол 2193
+# Bedrock 26.51 / wire protocol 2193
 
-`26.51`, `1.26.51` и `2193` обозначают один профиль. `12193` не является алиасом сетевого протокола: CLI отклоняет его с пояснением. Значение проверено по [PrismarineJS](https://github.com/PrismarineJS/minecraft-data/blob/master/data/bedrock/1.26.51/version.json), [Cloudburst codec](https://github.com/CloudburstMC/Protocol/tree/master/bedrock-codec/src/main/java/org/cloudburstmc/protocol/bedrock/codec/v2193) и Pumpkin.
+`26.51`, `1.26.51`, `2193` and the explicit `26.50`/`1.26.50` aliases
+select the same 2193 schema. `12193` is not a wire alias.
+The reference implementations are PrismarineJS/minecraft-data (1.26.51)
+and CloudburstMC/Protocol v2193 (1.26.50).
 
-## Запуск
+## Run
 
-Нужны прежние Rust/PHP зависимости и **Node.js 24+ с npm**. В этой реализации JS-процесс преобразует пакеты между объектной моделью NetherGames 1001 и точной схемой 2193. Это переходный bridge, не завершённый native Rust gateway.
+Rust, PHP with ext-encoding and **Node.js 24+ with npm** are required.
+The JS bridge is temporary: Rust still owns world/game state; PHP/RakLib
+owns network sessions and authentication. This is not a native Rust gateway.
 
 ```bash
 ./tools/node-install.sh
-./start.sh --playtest --version 26.51
+./start.sh --playtest --version 1.26.51
 ```
 
-`--playtest` создаёт отдельную конфигурацию, сохраняет онлайн-авторизацию и шифрование. Это тест в своей LAN на 19132/UDP; проброс портов автоматически не выполняется. В клиенте указывается LAN IP машины, не 0.0.0.0. При использовании старой карты сделайте резервную копию.
+Playtest creates a separate online/encrypted LAN config on UDP 19132.
+It does not change server.json or open router ports. Connect to the machine's
+LAN IP, not 0.0.0.0. Run only one instance per port. Back up an existing world.
+For a custom configuration: protocols=[2193], advertise-protocol=2193,
+experimental-codecs=true. Leave online-mode and encryption enabled.
 
-Для ручного server.json нужны `protocols: [2193]`, `advertise-protocol: 2193`, `experimental-codecs: true`. Для нескольких профилей каждый получает собственный реестр. Не добавляйте 1001 в конфигурацию лишь потому, что он является промежуточной схемой: его набор данных проверяется отдельно и может иметь собственную ошибку metadata.
+## Exact data, not an older palette with a new version number
 
-## Какие данные используются
+The full ordered 2193 block-state sequence comes from Pumpkin commit
+003d3c49eaf1ca21207671be55a91587bc1330b5, converted from Cloudburst/Data
+26.50 commit a8a4341d7763d6eb8547cff3ca46b4153d60163d.
+Item IDs/components and entity identifiers come from that pinned Cloudburst
+dump. See resources/modern/2193.sources.json for paths, sizes and Git blob hashes.
+Generated assets live in .runtime/bedrock/2193, with a SHA-256 receipt.
+PHP and an independent Python NBT parser verify the loaded ordered palette.
 
-- Порядок `block_states.nbt` взят из [Pumpkin 003d3c4](https://github.com/Pumpkin-MC/Pumpkin/tree/003d3c49eaf1ca21207671be55a91587bc1330b5/assets/bedrock), где он преобразован из [Cloudburst 26.50 a8a4341](https://github.com/CloudburstMC/Data/tree/a8a4341d7763d6eb8547cff3ca46b4153d60163d). Это дамп для семейства 2193, не палитра 1001.
-- Предметы, компоненты, идентификаторы сущностей и параметры биомов — из того же Cloudburst dump.
-- `resources/modern/2193.sources.json` закрепляет коммиты, размеры и Git blob SHA-1 всех входов. После проверки генерируется `.runtime/bedrock/2193/bundle.json` с SHA-256 выходов.
-- Порядок и NBT-типы состояний сохраняются. Legacy metadata отсутствует в этом источнике и **не выдумывается**: вместо неё проверяются число состояний и хеш упорядоченной палитры.
-- Для плоского мира регистрируется только серверный биом plains с ID 1, который отправляет наш chunk serializer. Это **не** полный vanilla biome registry; клиентская генерация отключена.
-- Импортированные каталоги не добавляют игровое поведение всех блоков/мобов. Текущий игровой набор по-прежнему ограничен строительными блоками ядра.
+The current world is flat Creative with server-defined plains biome ID 1.
+Only the existing canonical block/interaction set is implemented; an imported
+full item registry is not implementation of all Minecraft items or mechanics.
+Survival, vehicles, arbitrary crafting and production hardening are not added.
+1.26.40/2168 and 1.26.45/2169 remain explicitly blocked without reviewed data.
 
-Cloudburst Data распространяется с Apache-2.0; его LICENSE загружается вместе с данными. Происхождение преобразованного файла Pumpkin сохранено; проект MPE распространяется с GPL-3.0-or-later. Код движка Pumpkin этим изменением не импортируется.
+## Runtime fixes, 2026-09-26
 
-## Проверки
+Private PHP libraries no longer leak into Node, curl, Cargo or Python.
+PHP and PHP workers retain their own library/extension directories; non-PHP
+children receive the original environment. This fixes sqlite3session_attach
+and curl_multi_notify_enable failures caused by shadowing system libraries
+with the bundled PHP SDK. No system package or library is replaced.
+
+OPENSSL_CONF is selected explicitly: a readable user override, otherwise
+/etc/ssl/openssl.cnf, otherwise resources/openssl.cnf. An invalid explicit
+path fails; it does not silently disable validation. Actual P-384 key creation,
+ECDH, ES384 and AES-256-CTR are checked before binding UDP. Private keys and
+session secrets are never printed. This addresses Cannot create server P-384 key.
+Fixing library isolation does not upgrade an old Node installation: 24+ is required.
+
+## Native 1.26.30 metadata correction
+
+The pinned b5fd03f BedrockData snapshot contains 16913 block states but an
+erroneous 16914-entry metadata list. We download the corrected version-specific
+block_state_meta_map-1.26.30.json from NetherGamesMC/BedrockData commit
+e08720dda2f32bc7cab7f0bf5bde354f3434f56e, Git blob
+910a64d51fb1a1dbf86c5a6e959bc8b4e9686837.
+The entire source hash and integer list are verified. No truncation, padding,
+nearest-version fallback or modification of vendor is performed. All other
+native palette/items remain pinned to the original snapshot.
+
+```bash
+./start.sh --playtest --version 1.26.20
+./start.sh --playtest --version 1.26.30
+./start.sh --playtest --version 1.26.51
+```
+
+## Verification boundary
 
 ```bash
 ./start.sh --unit
-# Для конфигурации с 2193:
-./start.sh --doctor
+./tools/e2e.sh --version 1.26.20 --scenario creative
+./tools/e2e.sh --version 1.26.30 --scenario creative
 ./tools/e2e.sh --version 1.26.51 --scenario creative
 ```
 
-`--doctor` проверяет реальные установленные кодеки, а `tools/audit-loaded.py` независимо перечитывает палитру на Python и сравнивает с PHP, включая runtime ID/хеши. Node-импортёр является третьим читателем того же NBT. Тестовый клиент автоматически использует отдельный локальный 2193 NBT, когда он есть.
+The network tests run real Rust/RakLib/PHP/Prismarine over loopback UDP with
+encryption and an offline test identity. They assert start/spawn, decoded
+chunks and independent NBT palette IDs, chat, movement, inventory open/close,
+and ordinary block placement/breaking. The JSP test transport sends RakNet 11
+and subscribes before connecting; no node_modules/prototype patch is used.
 
-Workflow `bedrock-2193.yml` сохраняет реальные логи каждого этапа. Наличие workflow не означает успешный прогон: смотрите conclusion конкретного коммита. E2E использует loopback и offline-тестовую идентичность. Даже успешный E2E **не подтверждает** Microsoft online sign-in, интерфейс и рендеринг официального Minecraft. Эти результаты фиксируются отдельно.
-
-## Ограничения
-
-Поддержка экспериментальная: проверяем вход и имеющийся Creative-сценарий. Survival, полноценная физика, все блоки/механики и мультиплеер этим изменением не реализованы. Профили 2168/2169 не включены автоматически. Неподдерживаемые формы пакетов отклоняются, а не заменяются схемой соседней версии. Нельзя отключать preflight ради видимости успешного запуска.
+These are NOT an official Minecraft playtest or a real Microsoft online login.
+Read CI conclusions for the exact commit; unrun/failed stages are not passes.
+The separate online playtest remains the check with a signed-in game client.

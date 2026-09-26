@@ -2,6 +2,7 @@
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
+source "$ROOT/tools/runtime-env.sh"
 MODE="${1:-run}"
 case "$MODE" in
   --audit-data) shift; exec python3 "$ROOT/tools/upstream-audit.py" "$@";;
@@ -39,35 +40,36 @@ fi
 source "$ROOT/tools/php-runtime.sh"
 if [[ ! -f "$ROOT/vendor/autoload.php" ]]; then source "$ROOT/tools/composer-install.sh"; fi
 [[ -n "${MPE_CONFIG:-}" || -f "$ROOT/server.json" ]] || cp "$ROOT/server.example.json" "$ROOT/server.json"
+python3 "$ROOT/tools/prepare-native-metadata.py" --if-config
 python3 "$ROOT/tools/prepare-modern-data.py" --if-config
-if [[ "$MODE" == --refresh-auth ]]; then exec "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/gateway/bootstrap.php" --refresh-auth; fi
+if [[ "$MODE" == --refresh-auth ]]; then exec "${MPE_PHP_CMD[@]}" "$ROOT/gateway/bootstrap.php" --refresh-auth; fi
 if [[ "$MODE" == --cross-codec ]]; then
   node "$ROOT/tools/codec-doctor.cjs" --out="$ROOT/.runtime/client-packets.json"
-  exec "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/cross_codec.php" "$ROOT/.runtime/client-packets.json"
+  exec "${MPE_PHP_CMD[@]}" "$ROOT/tests/cross_codec.php" "$ROOT/.runtime/client-packets.json"
 fi
 audit_loaded() {
   python3 "$ROOT/tools/audit-loaded.py" --compare-loaded "$ROOT/data/palettes.loaded.json" --output "$ROOT/data/upstream-audit.json"
 }
 if [[ "$MODE" == --doctor ]]; then
-  "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/integration.php"
+  "${MPE_PHP_CMD[@]}" "$ROOT/tests/integration.php"
   audit_loaded
   exit 0
 fi
 if [[ "$MODE" == --test ]]; then
-  "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/unit.php"
-  "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/packet_factory_unit.php"
+  "${MPE_PHP_CMD[@]}" "$ROOT/tests/unit.php"
+  "${MPE_PHP_CMD[@]}" "$ROOT/tests/packet_factory_unit.php"
   node --test "$ROOT"/test-client/test/*.test.cjs
   python3 -m unittest discover -s "$ROOT/tests" -p '*_test.py' -v
   cargo test --locked
   cargo build --release --locked
   python3 "$ROOT/tests/engine_ipc.py" "$ROOT/target/release/mpe-core"
-  "$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/integration.php"
+  "${MPE_PHP_CMD[@]}" "$ROOT/tests/integration.php"
   audit_loaded
   exit 0
 fi
 if [[ "$MODE" != --no-build ]]; then cargo build --release --locked; fi
 [[ -x "$ROOT/target/release/mpe-core" ]] || { echo 'No Rust binary. Run ./start.sh without --no-build.' >&2; exit 1; }
 # Fail before opening UDP if an upstream API/asset cannot be encoded.
-"$MPE_PHP" "${MPE_PHP_ARGS[@]}" "$ROOT/tests/integration.php"
+"${MPE_PHP_CMD[@]}" "$ROOT/tests/integration.php"
 audit_loaded
-exec "$MPE_PHP" "${MPE_PHP_ARGS[@]}" -d memory_limit=512M "$ROOT/gateway/bootstrap.php"
+exec "${MPE_PHP_CMD[@]}" -d memory_limit=512M "$ROOT/gateway/bootstrap.php"

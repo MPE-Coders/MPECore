@@ -26,7 +26,7 @@ function parseArgs(argv) {
   if(o.version==='12193')throw Error('26.51 uses protocol 2193, not 12193')
   if(o.version.startsWith('26.'))o.version='1.'+o.version
   if (o.version !== 'auto') {
-    const p = catalog.find(v => v.version === o.version || String(v.protocol) === o.version)
+    const p = catalog.find(v => v.version === o.version || String(v.protocol) === o.version || (v.aliases||[]).includes(o.version))
     if (!p) throw Error('Version not in explicit catalog; use --list-protocols')
     o.version = p.version
   }

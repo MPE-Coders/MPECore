@@ -12,6 +12,7 @@ final class ProtocolProfile {
         if($this->data['min_section']!==-4||$this->data['max_section']!==19){throw new \RuntimeException('This milestone supports Overworld bounds only');}
     }
     public function asset(string $root,string $key):string {
+        if($this->id===1001 && $key==='block_meta'){return \mpe\data\NativeMetadata::path(dirname(__DIR__,5));}
         if($this->id===2193){$root=\mpe\data\ModernData::root(dirname(__DIR__,5));}
         $file=$this->data[$key]??throw new \InvalidArgumentException('Unknown profile asset');
         if(basename($file)!==$file){throw new \RuntimeException('Invalid asset path');}

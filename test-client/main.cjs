@@ -55,7 +55,7 @@ No Microsoft password is requested by this program; follow the dependency's devi
     })
     client.on('start_game',()=>{try{client.queue('request_chunk_radius',{chunk_radius:2,max_radius:2})}catch(e){fatal(e)}})
     client.on('network_stack_latency',p=>{if(p.needs_response)client.queue('network_stack_latency',{timestamp:p.timestamp,needs_response:false})})
-    client.once('connect_allowed',()=>client.connect())
+    client.once('connect_allowed',()=>{require('./lib/raknet.cjs').attachRaknet11(client);client.connect()})
     const result=scenario(client,inbox,o,report)
     result.catch(()=>{});client.init();await result
     report.success=true;log('Scenario completed with received evidence')

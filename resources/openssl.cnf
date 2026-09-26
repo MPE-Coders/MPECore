@@ -1,0 +1,5 @@
+# Fallback for machines without a system openssl.cnf. No legacy provider,
+# weak cipher policy, CA override or TLS verification bypass is enabled.
+[ req ]
+distinguished_name = req_distinguished_name
+[ req_distinguished_name ]

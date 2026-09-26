@@ -24,7 +24,7 @@ if not 10 <= a.timeout <= 300:
 if a.version=='12193': parser.error('26.51 uses protocol 2193, not 12193')
 if a.version.startswith('26.'): a.version='1.'+a.version
 catalog=json.loads((ROOT/'resources/protocol-catalog.json').read_text())
-profile=next((p for p in catalog if a.version in [p['version'],str(p['protocol'])]),None)
+profile=next((p for p in catalog if a.version in [p['version'],str(p['protocol']),*p.get('aliases',[])]),None)
 if profile is None or profile.get('server_status')=='blocked-unverified-data':
     parser.error('Choose a version from ./client --list-protocols')
 reportdir=ROOT/'tests/results/e2e'/str(profile['protocol'])
