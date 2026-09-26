@@ -30,6 +30,7 @@ No Microsoft password is requested by this program; follow the dependency's devi
     if(!o.palette){
       const p=require(`../resources/protocols/${o.protocol}.json`),asset=path.join(ROOT,'vendor/nethergamesmc/bedrock-data',p.block_palette)
       if(p.data_status==='explicit-nethergames-aliases' && fs.existsSync(asset))o.palette=asset
+      if(o.protocol===2193){const modern=path.join(ROOT,'.runtime/bedrock/2193',p.block_palette);if(fs.existsSync(modern))o.palette=modern}
     }
     if(o.palette)o.paletteData=require('./lib/palette.cjs').loadPalette(o.palette)
     else log('No local NBT palette: grass assertion uses server-reported mapping, not independent palette validation')
