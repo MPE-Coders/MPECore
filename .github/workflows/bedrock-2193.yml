@@ -71,6 +71,7 @@ jobs:
           for version in 1.26.20 1.26.30 1.26.51; do
             ./tools/e2e.sh --version "$version" --scenario creative 2>&1 | tee "ci-results/e2e-$version.log"
           done
+          ./tools/e2e.sh --multi 2>&1 | tee ci-results/e2e-multiversion.log
       - name: Record scope
         if: always()
         run: echo 'Data, codecs and loopback headless tests do not verify Microsoft online auth or the official Minecraft client.' >> "$GITHUB_STEP_SUMMARY"
@@ -80,6 +81,7 @@ jobs:
           name: bedrock-2193-${{ github.sha }}
           path: |
             ci-results/
+            target/release/mpe-core
             tests/results/
             data/upstream-audit.json
             .runtime/bedrock/1001/block_state_meta_map-1.26.30.json

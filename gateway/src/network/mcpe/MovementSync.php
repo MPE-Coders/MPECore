@@ -7,9 +7,9 @@ use pocketmine\network\mcpe\protocol as P;
 
 /** Wire representation only; feet and client input tick come from the Rust owner. */
 final class MovementSync {
-    public static function correction(array $feet, int $tick, bool $onGround): P\CorrectPlayerMovePredictionPacket {
+    public static function correction(array $feet, int $tick, bool $onGround, float $velocityY=0.0): P\CorrectPlayerMovePredictionPacket {
         return P\CorrectPlayerMovePredictionPacket::create(
-            new Vector3($feet[0],$feet[1]+1.62,$feet[2]),new Vector3(0,0,0),$onGround,$tick,
+            new Vector3($feet[0],$feet[1]+1.62,$feet[2]),new Vector3(0,$velocityY,0),$onGround,$tick,
             P\CorrectPlayerMovePredictionPacket::PREDICTION_TYPE_PLAYER,new Vector2(0,0),null
         );
     }

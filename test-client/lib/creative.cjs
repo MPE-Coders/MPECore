@@ -21,6 +21,7 @@ function playerInventory(packet) {
 async function creativeScenario(client, inbox, options, state, probe, check, start) {
   assert.equal(start.player_gamemode, 'creative', 'Server did not put this player in Creative')
   const content = await inbox.expect('inventory_content', playerInventory, options.timeout)
+  await require('./inventory.cjs').inventoryScenario(client,inbox,options,content,check)
   const held = content.input[0]
   assert(held && Number.isInteger(held.network_id) && held.network_id !== 0, 'First hotbar slot is empty')
   check('creative-mode-and-hotbar', { slots: content.input.length, heldItemSource: 'server InventoryContent' })
@@ -31,7 +32,7 @@ async function creativeScenario(client, inbox, options, state, probe, check, sta
   await inbox.expect('container_close', p => p.window_id === opened.window_id, options.timeout)
   check('ordinary-inventory-open-close', { window: opened.window_id, scope: 'packet acknowledgement, not rendered UI' })
   const [px, py, pz] = state.position
-  const clicked = { x: Math.floor(px) + 2, y: 63, z: Math.floor(pz) }
+  const clicked = { x: Math.floor(px) + 4, y: 63, z: Math.floor(pz) }
   const target = { ...clicked, y: 64 }
   const before = await probe(target.x, target.y, target.z)
   assert.equal(before.block.id, 0, 'Refusing to overwrite an existing block during creative test')

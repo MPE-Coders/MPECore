@@ -139,3 +139,28 @@ with tempfile.TemporaryDirectory(prefix='mpe-engine-test-') as directory:
     finally:
         b.close()
 print('PASS real Rust IPC suite; does not test Bedrock login')
+
+# The real gateway uses opcode 13 for input-driven vertical physics.
+with tempfile.TemporaryDirectory(prefix='mpe-physics-test-') as directory:
+    engine=Engine(directory)
+    try:
+        engine.join()
+        def move(tick, y, flags=0):
+            engine.send(b'\x0d'+struct.pack('<QfffffQB',1,0.5,y,0.5,0.0,0.0,tick,flags))
+            f=engine.receive();assert f[0]==0x8e, f.hex()
+            return struct.unpack_from('<fff',f,9)
+        for tick in range(1,81):
+            pos=move(tick,64.02)
+            assert abs(pos[1]-64.0)<0.001, 'Resting player drifted upward'
+        assert abs(move(81,68.0,1)[1]-68.0)<0.001
+        for tick in range(82,130): pos=move(tick,68.0)
+        assert abs(pos[1]-64.0)<0.001,'Disabling flight did not land'
+        pos=move(130,64.42,2);assert 64.4<pos[1]<64.5
+        for tick in range(131,180):pos=move(tick,64.0)
+        assert abs(pos[1]-64.0)<0.001
+        for x in [3,4,5,6]:
+            assert engine.interact(1,x,63,0,1,1)[0]==0x8a, 'Distant grass face rejected'
+            assert engine.interact(0,x,64,0,1)[0]==0x8a
+        print('PASS actual Rust standing / jump / fall / flight-disable / distant face actions')
+        engine.stop()
+    finally:engine.close()

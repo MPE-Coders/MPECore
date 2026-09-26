@@ -5,6 +5,7 @@ cd "$ROOT"
 source "$ROOT/tools/runtime-env.sh"
 MODE="${1:-run}"
 case "$MODE" in
+  --enable-multiversion) shift; exec python3 "$ROOT/tools/configure-multiversion.py" "$@";;
   --audit-data) shift; exec python3 "$ROOT/tools/upstream-audit.py" "$@";;
   --verify) shift; exec python3 "$ROOT/tools/verify.py" "$@";;
   --playtest) shift; exec "$ROOT/tools/playtest.sh" "$@";;
@@ -12,6 +13,7 @@ case "$MODE" in
   --help|-h)
     printf '%s\n' './start.sh              Build missing/outdated Rust binary and start' \
       './start.sh --playtest --version 26.51  Online LAN test world (protocol 2193)' \
+      './start.sh --enable-multiversion  Back up existing server.json and enable 975/1001/2193' \
       './start.sh --check-source Check that all tracked source files are present' \
       './start.sh --unit       PHP + JS + Python standalone tests (not a login test)' \
       './start.sh --cross-codec Real Prismarine -> NetherGames cross-codec checks' \

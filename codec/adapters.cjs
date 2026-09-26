@@ -10,7 +10,7 @@ const ALLOWED=new Set(['request_network_settings','network_settings','login','pl
   'move_player','text','command_request','update_block','inventory_content','inventory_slot',
   'inventory_transaction','mob_equipment','item_stack_request','item_stack_response','available_commands',
   'player_action','request_ability','container_close','container_open','interact',
-  'correct_player_move_prediction','packet_violation_warning'])
+  'correct_player_move_prediction','packet_violation_warning','set_entity_data'])
 const MOTION_FLAGS=new Set(['up','down','left','right','vertical_collision','horizontal_collision','handled_teleport',
   'received_server_data','jumping','jump_down','start_jumping','sprinting','sprint_down','start_sprinting','stop_sprinting',
   'sneaking','sneak_down','start_sneaking','stop_sneaking','persist_sneak','sneak_toggle_down',

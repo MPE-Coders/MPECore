@@ -27,7 +27,7 @@ final class SpawnSequence {
             0,0,'',true,'MPE-Core/0.4.0',Uuid::fromString(Uuid::NIL),false,false,false,
             new T\NetworkPermissions(false),false,null,new T\ServerTelemetryData('','','',''),[],0,$registry->items
         );
-        $packets=[$start];
+        $packets=[$start,self::actorData($runtimeId)];
         if($registry->profile->id>=776){$packets[]=P\ItemRegistryPacket::create($registry->items);}
         $packets[]=$registry->actors;$packets[]=$registry->biomes;
         $packets[]=P\UpdateAttributesPacket::create($runtimeId,[
@@ -41,6 +41,18 @@ final class SpawnSequence {
         $packets[]=CommandNetwork::packet();
         return $packets;
     }
+    /** Local-player metadata must be explicit; the spawn packet is not an AddPlayer. */
+    public static function actorData(int $runtimeId):P\SetActorDataPacket {
+        $props=new T\entity\EntityMetadataCollection();
+        $props->setGenericFlag(T\entity\EntityMetadataFlags::AFFECTED_BY_GRAVITY,true);
+        $props->setGenericFlag(T\entity\EntityMetadataFlags::HAS_COLLISION,true);
+        $props->setGenericFlag(T\entity\EntityMetadataFlags::CAN_CLIMB,true);
+        $props->setGenericFlag(T\entity\EntityMetadataFlags::NO_AI,false);
+        $props->setFloat(T\entity\EntityMetadataProperties::BOUNDING_BOX_WIDTH,0.6);
+        $props->setFloat(T\entity\EntityMetadataProperties::BOUNDING_BOX_HEIGHT,1.8);
+        $props->setFloat(T\entity\EntityMetadataProperties::SCALE,1.0);
+        return P\SetActorDataPacket::create($runtimeId,$props->getAll(),new T\entity\PropertySyncData([],[]),0);
+    }
     public static function abilities(int $runtimeId,bool $allowBuild,bool $flying):P\UpdateAbilitiesPacket {
         $abilities=[];
         for($i=0;$i<T\AbilitiesLayer::NUMBER_OF_ABILITIES;$i++) { if(!in_array($i,[13,14,19],true)) { $abilities[$i]=false; } }
@@ -49,6 +61,6 @@ final class SpawnSequence {
         $abilities[T\AbilitiesLayer::ABILITY_MINE]=$allowBuild;
         $abilities[T\AbilitiesLayer::ABILITY_DOORS_AND_SWITCHES]=$allowBuild;
         $abilities[T\AbilitiesLayer::ABILITY_FLYING]=$flying;
-        return P\UpdateAbilitiesPacket::create(new T\AbilitiesData(0,1,$runtimeId,[new T\AbilitiesLayer(T\AbilitiesLayer::LAYER_BASE,$abilities,0.05,1.0,0.1)]));
+        return P\UpdateAbilitiesPacket::create(new T\AbilitiesData(0,1,$runtimeId,[new T\AbilitiesLayer(T\AbilitiesLayer::LAYER_BASE,$abilities,0.05,0.05,0.1)]));
     }
 }
